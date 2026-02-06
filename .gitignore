@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Data and logs (runtime generated)
+data/logs/
+data/measurements/
+*.log
+
+# Secrets and local config
+config/secrets.yaml
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Simulation outputs (large files)
+simulations/openfoam/*/constant/polyMesh/
+simulations/openfoam/*/[0-9]*/
+simulations/openfoam/*/processor*/
+simulations/elmer/*/mesh/
+*.vtk
+*.vtu
+*.pvd
+
+# CAD temporary files
+*.FCStd1
+*.FCBak
+*~.FCStd
+
+# Fabrication outputs (regenerable)
+# Uncomment if you want to track these:
+# fabrication/dxf/
+# fabrication/stl/

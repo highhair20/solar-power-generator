@@ -1,0 +1,44 @@
+# System Configuration Example
+# Copy to system.yaml and adjust values for your installation
+
+location:
+  latitude: 40.7128      # degrees North
+  longitude: -74.0060    # degrees East (negative for West)
+  elevation: 10          # meters above sea level
+  timezone: "America/New_York"
+
+collector:
+  type: "scheffler"      # scheffler, parabolic, fresnel_hybrid
+  aperture_diameter: 2.0 # meters
+  focal_length: 1.5      # meters
+  tracking_mode: "2-axis" # 1-axis, 2-axis
+
+storage:
+  material: "sand"
+  mass_kg: 1000
+  specific_heat: 840     # J/(kg·K)
+  max_temperature: 600   # °C
+  min_temperature: 100   # °C
+
+conversion:
+  stirling:
+    enabled: true
+    hot_side_temp: 600   # °C
+    cold_side_temp: 300  # °C
+  orc:
+    enabled: true
+    working_fluid: "pentane"
+    hot_side_temp: 300   # °C
+    cold_side_temp: 100  # °C
+  teg:
+    enabled: true
+    hot_side_temp: 100   # °C
+    cold_side_temp: 40   # °C
+
+safety:
+  receiver_temp_warning: 700    # °C
+  receiver_temp_critical: 800   # °C
+  storage_temp_warning: 650     # °C
+  storage_temp_critical: 700    # °C
+  wind_speed_warning: 15        # m/s
+  wind_speed_critical: 25       # m/s
