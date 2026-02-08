@@ -6,13 +6,13 @@ This document covers research into concentrated solar power (CSP) collection met
 
 ---
 
-## Primary: Scheffler Reflector Dish
+## Primary: Parabolic Dish (Two-Axis Tracking)
 
-- Fixed-focus parabolic reflector designed for DIY/community builds
-- One-axis tracking (simpler than full parabolic dish)
-- Achieves **300–700°C** at the focal point
-- Fixed focal point — ideal for a stationary thermal storage receiver
-- Materials: aluminum reflective sheet (e.g., Alanod MIRO-SUN, 91% reflectance), steel frame, simple motor/clockwork tracking
+- Highest optical efficiency (~85–93%) and concentration ratio (1,000–3,000x) of any CSP type
+- Achieves **300–1,500°C** at the focal point
+- Two-axis tracking required (alt-azimuth or equatorial mount)
+- Can be built on a repurposed satellite dish frame with mirror tiles
+- Materials: aluminum reflective sheet (e.g., Alanod MIRO-SUN, 91% reflectance), steel frame, dual-axis motor tracking
 - All materials non-toxic and commonly available
 - Solar-to-thermal efficiency: **55–70%**
 
@@ -46,11 +46,17 @@ This document covers research into concentrated solar power (CSP) collection met
 
 ---
 
-## Alternative: Parabolic Dish (Two-Axis Tracking)
+## Alternative: Scheffler Reflector Dish
 
-- Highest efficiency (55–70%) and highest temperature (300–1500°C) of any CSP type
-- Requires two-axis tracking (more complex)
-- Can be built on a repurposed satellite dish frame with mirror tiles
+- Fixed-focus parabolic reflector designed for DIY/community builds
+- One-axis tracking (simpler than parabolic dish)
+- Achieves **300–700°C** at the focal point
+- Fixed focal point — ideal for a stationary thermal storage receiver
+- Optical efficiency: ~60–75% (lower than parabolic dish due to seasonal reshaping compromise)
+- Concentration ratio: ~50–200x
+- Solar-to-thermal efficiency: **55–70%** (lower end of range)
+- Materials: aluminum reflective sheet, steel frame, simple motor/clockwork tracking
+- All materials non-toxic and commonly available
 
 ---
 

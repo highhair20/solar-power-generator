@@ -16,7 +16,7 @@ A solar thermal power system with heat storage for on-demand electricity generat
 ## System Overview
 
 ```
-[Sun] → [Scheffler Dish] → [Sand Battery 500-600°C]
+[Sun] → [Parabolic Dish] → [Sand Battery 500-600°C]
                                     ↓
          ┌──────────────────────────┼──────────────────────────┐
          ↓                          ↓                          ↓
@@ -35,7 +35,7 @@ A solar thermal power system with heat storage for on-demand electricity generat
 ## Documentation
 
 ### Research
-- [Solar Collection](docs/research/solar-collection.md) — Scheffler, parabolic dish, Fresnel hybrid
+- [Solar Collection](docs/research/solar-collection.md) — Parabolic dish, Scheffler, Fresnel hybrid
 - [Thermal Storage](docs/research/thermal-storage.md) — Sand battery, PCM, rock bed
 - [Heat Conversion](docs/research/heat-conversion.md) — Stirling, ORC, Tesla turbine, TEG
 - [Exploratory Concepts](docs/research/exploratory-concepts.md) — Unconventional first-principles ideas
@@ -83,5 +83,5 @@ This project is dual-licensed:
 ### Key Decisions Made
 - Cascade conversion (Stirling → ORC → TEG) rather than single engine
 - Sand battery as primary storage (inspired by Polar Night Energy)
-- Scheffler reflector as primary collector (fixed focus, DIY-friendly)
+- Parabolic dish as primary collector (highest efficiency and temperature)
 - Tesla turbine as ORC expander alternative (simpler fabrication)
