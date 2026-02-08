@@ -55,6 +55,30 @@ This document covers research into thermal energy storage methods for the solar 
 
 ---
 
+## Future Scaling Option: Falling Particle Receiver (Direct Sand/Gravel Heating)
+
+- Sand or gravel particles fall directly through the concentrated focal spot, absorbing heat without an intermediate transfer fluid
+- Eliminates the heat exchanger between transfer fluid and storage — the storage medium *is* the transfer medium
+- Sand/gravel handles 1000°C+ with no degradation
+- No pumps, no pressure vessels, no toxic fluids
+- Active research area: Sandia National Labs falling particle receiver program
+
+### Why Not for Iteration One
+
+- Our focal spot is only ~4 cm (1 m dish) — difficult to get meaningful particle flow through such a small region
+- Requires a mechanical lift system (bucket elevator, auger) to cycle particles from cool storage back up to the receiver
+- Particle flow rate control is tricky — too fast and grains don't heat sufficiently, too slow and they overheat or clog
+- Dust and abrasion on moving parts
+- The receiver sits 0.60 m above the dish vertex, adding complexity for particle transport
+
+### When It Makes Sense
+
+- Larger dish sizes (3+ m) with larger focal spots
+- Higher thermal power (multiple kW) where the fluid-to-storage heat exchanger becomes a significant cost and efficiency bottleneck
+- Systems where eliminating the heat transfer fluid simplifies the overall design
+
+---
+
 ## Waste Heat Recovery: Water Tank
 
 - Captures low-grade waste heat from engine exhaust
