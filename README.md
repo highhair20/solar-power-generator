@@ -42,4 +42,7 @@ Currently in research and early development phase.
 
 ## License
 
-TBD
+This project is dual-licensed:
+
+- **Hardware, CAD, and documentation** — [CERN-OHL-S-2.0](LICENSE-CERN-OHL-S-2.0.txt)
+- **Software and simulation code** — [GPL-3.0](LICENSE-GPL-3.0.txt)
