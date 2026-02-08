@@ -6,15 +6,25 @@ This document captures target specifications for the solar power generator syste
 
 ---
 
+## Design Targets
+
+| Parameter | Value |
+|-----------|-------|
+| **Electrical output (peak)** | **~140 W** |
+| **Location** | **US Southwest (~1000 W/m² peak DNI)** |
+| **Collector** | **1 m parabolic dish (~0.785 m² aperture)** |
+
 ## Target Performance
 
 | Parameter | Target | Notes |
 |-----------|--------|-------|
-| Solar collection efficiency | 55–70% | Scheffler or parabolic dish |
+| Solar collection efficiency | ~70% | 1 m parabolic dish (optical 84% x receiver 83%) |
+| Peak solar input | 785 W | At 1000 W/m² DNI |
+| Peak thermal output to storage | ~550 W | After collector losses |
 | Peak storage temperature | 500–600°C | Sand battery |
-| Storage capacity | TBD | Depends on sizing |
+| Storage capacity | TBD | Depends on autonomy requirement |
 | Heat-to-electric efficiency | ~32% | Cascade (Stirling + ORC + TEG) |
-| Overall solar-to-electric | ~18% | Collection × storage × conversion |
+| Overall solar-to-electric | ~18% | Collection x storage x conversion |
 | Total energy utilization | 60–80% | Including thermal use |
 
 ---
@@ -33,15 +43,19 @@ This document captures target specifications for the solar power generator syste
 
 ---
 
-## Size Targets (TBD)
+## System Sizing (140 W Design)
 
-| Parameter | Small Scale | Medium Scale |
-|-----------|-------------|--------------|
-| Collector area | 2–5 m² | 10–25 m² |
-| Storage volume | 0.5–1 m³ | 2–5 m³ |
-| Storage capacity | 25–60 kWh | 100–300 kWh |
-| Peak electrical output | 100–500 W | 1–5 kW |
-| Daily electrical yield | 0.5–2 kWh | 5–20 kWh |
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Collector diameter | 1.0 m | Parabolic dish |
+| Collector aperture area | 0.785 m² | pi/4 x 1² |
+| Collector focal length | 0.60 m | 45° rim angle |
+| Peak thermal to storage | ~550 W | 70% collector efficiency |
+| Storage volume | TBD | Depends on autonomy requirement |
+| Storage capacity | TBD | Depends on autonomy requirement |
+| Peak electrical output | ~140 W | Cascade conversion |
+| Daily electrical yield | ~1 kWh | Annual average, US Southwest |
+| Daily thermal yield | ~3.8 kWh | To storage (annual average) |
 
 ---
 
@@ -102,7 +116,7 @@ This document captures target specifications for the solar power generator syste
 
 The following parameters require further analysis or optimization:
 
-- [ ] Exact collector dimensions
+- [x] Collector dimensions — 1 m diameter parabolic dish (see [Collector Design](collector-design.md))
 - [ ] Storage silo dimensions and insulation thickness
 - [ ] Stirling engine swept volumes and configuration
 - [ ] ORC working fluid selection

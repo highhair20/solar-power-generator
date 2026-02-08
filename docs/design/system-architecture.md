@@ -4,6 +4,10 @@
 
 This document describes the overall system design, heat flow paths, and stage interconnections.
 
+**Design target:** ~140 W peak electrical output
+**Location:** US Southwest (~1000 W/m² peak DNI)
+**Primary collector:** 1 m parabolic dish (0.785 m² aperture, ~550 W peak thermal output)
+
 ---
 
 ## System Diagram
@@ -12,7 +16,7 @@ This document describes the overall system design, heat flow paths, and stage in
                          [Sun]
                            |
                            v
-              [Scheffler Reflector Dish]
+        [1 m Parabolic Dish (0.785 m²)]
                            |
                            v
                    [Thermal Receiver]
@@ -105,7 +109,7 @@ This document describes the overall system design, heat flow paths, and stage in
 
 | Stage | Temperature Range | Efficiency |
 |-------|-------------------|-----------|
-| Solar collection (Scheffler) | — | 55–70% |
+| Solar collection (1 m parabolic dish) | — | ~70% |
 | Thermal storage (sand, round-trip) | — | 90–99% |
 | **Stage 1:** Stirling engine | 600→300°C | 15–25% |
 | **Stage 2:** ORC | 300→100°C | 10–15% |

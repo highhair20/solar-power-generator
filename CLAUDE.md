@@ -42,6 +42,7 @@ A solar thermal power system with heat storage for on-demand electricity generat
 
 ### Design
 - [System Architecture](docs/design/system-architecture.md) — Heat flow, staging, efficiency
+- [Collector Design](docs/design/collector-design.md) — 1 m parabolic dish sizing and specifications
 - [Materials](docs/design/materials.md) — Approved materials, sourcing
 - [Specifications](docs/design/specifications.md) — Target performance, interfaces
 
