@@ -73,6 +73,13 @@ solar-power-generator/
 - **Optimization:** pymoo (NSGA-II), scipy.optimize
 - **Gas properties:** CoolProp
 
+## License
+
+This project is dual-licensed:
+
+- **Hardware, CAD, and documentation** (`docs/`, `cad/`, `fabrication/`, `simulations/`) — [CERN-OHL-S-2.0](LICENSE-CERN-OHL-S-2.0.txt)
+- **Software and simulation code** (`src/`) — [GPL-3.0](LICENSE-GPL-3.0.txt)
+
 ### Key Decisions Made
 - Cascade conversion (Stirling → ORC → TEG) rather than single engine
 - Sand battery as primary storage (inspired by Polar Night Energy)
