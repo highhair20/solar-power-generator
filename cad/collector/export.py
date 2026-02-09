@@ -88,8 +88,10 @@ def export_all():
     # ── Full assembly ─────────────────────────────────────────────
     print("\n[5/5] Full collector assembly...")
     assembly = make_assembly()
-    export_step(assembly, "collector_assembly")
-    export_stl(assembly, "collector_assembly")
+    # Assembly uses .save() instead of cq.exporters.export()
+    path = os.path.join(OUTPUT_DIR, "collector_assembly.step")
+    assembly.save(path)
+    print(f"  STEP → {path}")
 
     print("\n✓ All exports complete.")
     print(f"  Output directory: {OUTPUT_DIR}")

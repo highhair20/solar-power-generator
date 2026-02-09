@@ -148,10 +148,37 @@ def make_petal_solid(petal_index: int = 0) -> cq.Workplane:
 
 
 def make_dish() -> cq.Workplane:
-    """Create the full 8-petal dish by combining all petals."""
-    dish = make_petal_solid(0)
-    for i in range(1, NUM_PETALS):
-        dish = dish.union(make_petal_solid(i))
+    """Create the full dish as a single 360° revolved paraboloid shell.
+
+    Individual petals share exact boundary faces, so boolean union fails.
+    Instead, revolve the full parabolic profile 360° to make one solid.
+    """
+    profile_pts = []
+    for i in range(NUM_RADIAL_PTS + 1):
+        r = DISH_RADIUS * i / NUM_RADIAL_PTS
+        z = paraboloid_z(r)
+        profile_pts.append((r, z))
+
+    first = profile_pts[0]
+    last = profile_pts[-1]
+
+    # Build closed cross-section: outer parabola, closing line, inner parabola
+    wp = cq.Workplane("XZ")
+    wp = wp.moveTo(first[0], first[1])
+    wp = wp.spline(profile_pts[1:])
+    wp = wp.lineTo(last[0], last[1] - PETAL_THICKNESS)
+
+    inner_pts = []
+    for i in range(NUM_RADIAL_PTS, -1, -1):
+        r = DISH_RADIUS * i / NUM_RADIAL_PTS
+        z = paraboloid_z(r) - PETAL_THICKNESS
+        inner_pts.append((r, z))
+
+    wp = wp.spline(inner_pts[1:])
+    wp = wp.close()
+
+    # Full 360° revolve around the Z axis (expressed as Y in XZ plane)
+    dish = wp.revolve(360, (0, 0, 0), (0, 1, 0))
     return dish
 
 

@@ -84,40 +84,33 @@ def make_support_arm(arm_index: int = 0) -> cq.Workplane:
     return arm
 
 
-def make_support_arms() -> cq.Workplane:
-    """All support arms (tripod configuration)."""
-    arms = make_support_arm(0)
-    for i in range(1, NUM_SUPPORT_ARMS):
-        arms = arms.union(make_support_arm(i))
-    return arms
+def make_assembly() -> cq.Assembly:
+    """Full collector assembly using CadQuery Assembly (avoids boolean union issues).
 
+    Returns a cq.Assembly with named sub-components positioned correctly.
+    """
+    assy = cq.Assembly(name="collector")
 
-def make_assembly() -> cq.Workplane:
-    """Full collector assembly: dish + structure + arms + receiver."""
     print("  Building dish petals...")
-    dish = make_dish()
+    assy.add(make_dish(), name="dish", color=cq.Color("gray"))
 
     print("  Building backup structure...")
-    structure = make_backup_structure()
+    assy.add(make_backup_structure(), name="backup_structure", color=cq.Color("steelblue"))
 
     print("  Building support arms...")
-    arms = make_support_arms()
+    for i in range(NUM_SUPPORT_ARMS):
+        assy.add(make_support_arm(i), name=f"support_arm_{i}", color=cq.Color("steelblue"))
 
     print("  Building receiver...")
     receiver = make_receiver()
-    # Position receiver at focal point, aperture facing down toward dish (toward -Z)
+    # Position receiver at focal point, aperture facing down toward dish
     # Receiver is built with aperture at Z=0, cavity extending in +Z
-    # We need aperture at focal point facing the dish, so rotate 180° around X
+    # Rotate 180° around X so aperture faces -Z, then translate to focal point
     receiver = receiver.rotate((0, 0, 0), (1, 0, 0), 180)
-    # Now aperture faces -Z (toward dish). Translate to focal point.
     receiver = receiver.translate((0, 0, RECEIVER_Z))
+    assy.add(receiver, name="receiver", color=cq.Color("firebrick"))
 
-    print("  Combining assembly...")
-    assembly = dish.union(structure)
-    assembly = assembly.union(arms)
-    assembly = assembly.union(receiver)
-
-    return assembly
+    return assy
 
 
 # ── Main: build and export when run directly ──────────────────────
@@ -132,11 +125,7 @@ if __name__ == "__main__":
     assembly = make_assembly()
 
     print("Exporting STEP...")
-    cq.exporters.export(assembly, os.path.join(output_dir, "collector_assembly.step"))
+    assembly.save(os.path.join(output_dir, "collector_assembly.step"))
     print("  → collector_assembly.step")
-
-    print("Exporting STL...")
-    cq.exporters.export(assembly, os.path.join(output_dir, "collector_assembly.stl"))
-    print("  → collector_assembly.stl")
 
     print("Done.")
