@@ -46,6 +46,12 @@ A solar thermal power system with heat storage for on-demand electricity generat
 - [Materials](docs/design/materials.md) — Approved materials, sourcing
 - [Specifications](docs/design/specifications.md) — Target performance, interfaces
 
+### CAD
+- [`cad/collector/dish.py`](cad/collector/dish.py) — Parametric parabolic dish (8 petals, backup structure, flat petal pattern)
+- [`cad/collector/receiver.py`](cad/collector/receiver.py) — Cavity receiver (steel shell, insulation, mounting flange)
+- [`cad/collector/assembly.py`](cad/collector/assembly.py) — Full collector assembly (dish + receiver at focal point)
+- [`cad/collector/export.py`](cad/collector/export.py) — Batch export to STEP/STL/DXF → `cad/collector/output/`
+
 ### Computational
 - [Tools](docs/computational/tools.md) — Software stack (FreeCAD, SolTrace, pymoo, etc.)
 - [Workflows](docs/computational/workflows.md) — Optimization pipelines, simulation setup
@@ -60,7 +66,9 @@ solar-power-generator/
 │   ├── design/            # Architecture, specs, materials
 │   └── computational/     # Tools and workflows
 ├── src/                   # (Future) Simulation code
-├── cad/                   # (Future) Parametric CAD files
+├── cad/
+│   └── collector/         # CadQuery scripts for dish & receiver
+│       └── output/        # Generated STEP/STL/DXF (gitignored)
 ├── simulations/           # (Future) CFD/FEA cases
 └── fabrication/           # (Future) Manufacturing outputs
 ```
