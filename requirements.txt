@@ -8,6 +8,9 @@ CoolProp>=6.4.0
 # Multi-objective optimization
 pymoo>=0.6.0
 
+# Parametric CAD
+cadquery>=2.4.0
+
 # Visualization
 matplotlib>=3.7.0
 
