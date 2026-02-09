@@ -70,7 +70,7 @@ simulations/elmer/*/mesh/
 *.FCBak
 *~.FCStd
 
-# Fabrication outputs (regenerable)
-# Uncomment if you want to track these:
-# fabrication/dxf/
-# fabrication/stl/
+# CAD generated outputs (regenerable from scripts)
+*.step
+*.stl
+*.dxf
