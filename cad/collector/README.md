@@ -19,9 +19,11 @@ python cad/collector/export.py
 Or run individual scripts:
 
 ```bash
-python cad/collector/dish.py       # Dish + backup structure + flat petal pattern
-python cad/collector/receiver.py   # Cavity receiver + insulation
-python cad/collector/assembly.py   # Full assembly (dish + receiver at focal point)
+python cad/collector/dish.py          # Dish + backup structure + flat petal pattern
+python cad/collector/receiver.py      # Cavity receiver + insulation
+python cad/collector/assembly.py      # Full assembly (dish + receiver at focal point)
+python cad/collector/faceted_dish.py          # Faceted hex-mirror dish + frame
+python cad/collector/faceted_dish_octagon.py  # Faceted octagon+square dish + frame
 ```
 
 ## Output Files
@@ -34,6 +36,12 @@ python cad/collector/assembly.py   # Full assembly (dish + receiver at focal poi
 | `receiver` | STEP, STL | Complete receiver (cavity + insulation + flange) |
 | `cavity_shell` | STEP | Steel cavity body only |
 | `collector_assembly` | STEP | All components assembled |
+| `faceted_dish` | STEP | Hexagonal flat-mirror array (~140 facets) |
+| `faceted_frame` | STEP, STL | Support frame for faceted dish |
+| `faceted_assembly` | STEP | Faceted mirrors + frame assembled |
+| `octagon_dish` | STEP | Octagon+square flat-mirror array |
+| `octagon_frame` | STEP, STL | Support frame for octagon+square dish |
+| `octagon_assembly` | STEP | Octagon+square mirrors + frame assembled |
 
 ## Parameters
 
@@ -48,3 +56,9 @@ All dimensions are defined as constants at the top of each script and match
 | Receiver aperture | 40 mm | `receiver.py` |
 | Cavity inner diameter | 70 mm | `receiver.py` |
 | Cavity depth | 60 mm | `receiver.py` |
+| Facet size (flat-to-flat) | 75 mm | `faceted_dish.py` |
+| Facet count | ~140 | `faceted_dish.py` |
+| Mirror thickness | 3 mm | `faceted_dish.py` |
+| Octagon size (flat-to-flat) | 90 mm | `faceted_dish_octagon.py` |
+| Square side | ~37 mm | `faceted_dish_octagon.py` |
+| Tiling type | Truncated square (100% fill) | `faceted_dish_octagon.py` |
