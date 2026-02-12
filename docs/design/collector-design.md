@@ -246,6 +246,55 @@ Design wind load (operating): ~55 N lateral force on dish at 40 km/h.
 
 ---
 
+## Alternative Collector Options
+
+### 24" Edmund Optics Dish (Prototype Platform)
+
+A 24" (610 mm) precision parabolic dish from Edmund Optics as a test platform
+before committing to the full 1 m fabricated dish.
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Aperture diameter | 610 mm (24") | Off-the-shelf precision optic |
+| Aperture area | 0.292 m² | 37% of 1 m dish |
+| Solar input | 292 W | At 1000 W/m² |
+| Focal length | TBD | Verify against receiver design |
+| Surface accuracy | High (optical-grade) | Better intercept factor than DIY dish |
+| Mirror coating (stock) | Aluminum (~85-90%) | Standard optical coating |
+| Mirror coating (upgraded) | ReflecTech film (~94%) | Self-adhesive, easy to apply |
+
+**Expected output (with ReflecTech + baseline everything else):**
+
+| Metric | Value |
+|--------|-------|
+| Optical efficiency | ~87% |
+| Thermal to receiver | ~221 W |
+| Electrical (at 18.6%) | ~54 W |
+| Electrical (at 30% target) | ~88 W |
+
+**Pros:** Precision surface, no fabrication needed, fast path to testing receiver
+and Stirling. **Cons:** Smaller aperture limits power output, cost may be high for
+an optic this size.
+
+### 1.5 m Solar Cooker Dish (Budget Alternative)
+
+A commercial 1.5 m parabolic solar cooker (~$150-300) as a low-cost substrate.
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| Aperture diameter | 1.5 m | Larger than 1 m design |
+| Aperture area | 1.77 m² | 2.3x the 1 m dish |
+| Solar input | 1770 W | At 1000 W/m² |
+| Mirror coating (stock) | Polished aluminum (~80-85%) | Degrades with weathering |
+| Mirror coating (upgraded) | ReflecTech film (~94%) | Major improvement over stock |
+| Surface accuracy | Unknown | Likely worse than precision optics |
+
+**Pros:** Cheap, large aperture, already has stand and parabolic shape.
+**Cons:** Unknown surface accuracy (hurts intercept factor), focal length may
+not match 600 mm design, durability under thermal cycling uncertain.
+
+---
+
 ## Open Questions
 
 - [ ] Exact petal forming process — press brake vs. English wheel vs. fiberglass mold

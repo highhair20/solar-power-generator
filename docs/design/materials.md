@@ -13,7 +13,7 @@ All materials used in this project must be:
 
 | Component | Key Materials | Notes |
 |-----------|--------------|-------|
-| Reflector | Aluminum mirror sheet, steel frame | Alanod MIRO-SUN or similar (91% reflectance) |
+| Reflector | Aluminum mirror sheet or mirror film, steel frame | Alanod MIRO-SUN (~91%) or ReflecTech mirror film (~94%) |
 | Fresnel lens | Acrylic (PMMA) or glass | Acrylic cheaper, glass more durable |
 | Receiver | Copper/steel pipe, flat black high-temp paint | Selective coatings optional |
 | Sand battery | Silica sand, steel silo, firebrick, mineral wool | Sand is free/cheap |
@@ -36,6 +36,15 @@ All materials used in this project must be:
 - 91% hemispheric solar reflectance
 - 0.5 mm thick, bendable
 - Weatherproof (anodized + PVD-coated + nano-composite lacquer)
+- Non-toxic
+
+**ReflecTech mirror film**
+- Silver-metallized polymer film with self-adhesive backing
+- ~94% solar-weighted reflectance
+- Lightweight, flexible — applies directly to dish or substrate
+- UV-stabilized with protective top layer
+- Used in commercial CSP (NREL-tested)
+- Good option for upgrading low-cost dishes (e.g., solar cookers)
 - Non-toxic
 
 ### Thermal Storage Materials

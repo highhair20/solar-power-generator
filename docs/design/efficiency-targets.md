@@ -35,7 +35,7 @@ Achieve **30% overall solar-to-electric efficiency**, up from the current ~18% b
 
 1. **Stirling engine 20% → 32%** — ~8 points of system efficiency. Free-piston with pressurized helium (proven by Infinia, Qnergy). Hardest but most rewarding.
 2. **Aperture window (radiation loss 10% → 5%)** — fused quartz disc over receiver aperture. ~3 points of system efficiency.
-3. **Mirror reflectance 90% → 95%** — silver-on-glass mirrors (standard in CSP industry). ~2 points. Trade-off: heavier, fragile, needs weatherproof coating.
+3. **Mirror reflectance 90% → 95%** — silver-on-glass mirrors or ReflecTech mirror film (~94%, self-adhesive, NREL-tested). ~2 points. Film is lighter and easier to apply; glass gives highest reflectance but is heavier and fragile.
 4. **Selective absorber coating** — commercial CSP receiver coatings. ~1 point. Drop-in improvement.
 
 Levers 1+2 alone: 18% → ~25%.
