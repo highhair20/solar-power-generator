@@ -45,6 +45,7 @@ A solar thermal power system with heat storage for on-demand electricity generat
 - [Collector Design](docs/design/collector-design.md) — 1 m parabolic dish sizing and specifications
 - [Materials](docs/design/materials.md) — Approved materials, sourcing
 - [Specifications](docs/design/specifications.md) — Target performance, interfaces
+- [Efficiency Targets](docs/design/efficiency-targets.md) — Path from 18% to 30% efficiency
 
 ### CAD
 - [`cad/collector/dish.py`](cad/collector/dish.py) — Parametric parabolic dish (8 petals, backup structure, flat petal pattern)
