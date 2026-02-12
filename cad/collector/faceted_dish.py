@@ -114,7 +114,7 @@ def _hex_wire(facet_size: float) -> cq.Workplane:
     circumradius = facet_size / math.sqrt(3)
     pts = []
     for i in range(6):
-        angle = math.radians(60 * i)  # flat-top: vertex at 0°
+        angle = math.radians(60 * i + 30)  # pointy-top: vertex at 30°
         pts.append((circumradius * math.cos(angle), circumradius * math.sin(angle)))
     return cq.Workplane("XY").polyline(pts).close()
 
