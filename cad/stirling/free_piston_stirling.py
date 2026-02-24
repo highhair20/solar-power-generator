@@ -84,20 +84,29 @@ Z_HEATER = VESSEL_LENGTH
 def make_pressure_vessel() -> cq.Workplane:
     """Main cylindrical pressure vessel — sealed housing for all internals.
 
-    Axis along Z. Bottom is closed (bounce space end), top is open
-    (heater head attaches there).
+    Axis along Z. Closed at both ends. Top has a bore for the heater head
+    to insert into (sealed with a shoulder).
     """
     # Outer shell
     outer = cq.Workplane("XY").circle(VESSEL_OD / 2).extrude(VESSEL_LENGTH)
 
-    # Inner bore
+    # Inner bore — stops short of the top, leaving a top wall
     inner = (
         cq.Workplane("XY")
         .workplane(offset=VESSEL_WALL)
         .circle(VESSEL_ID / 2)
-        .extrude(VESSEL_LENGTH - VESSEL_WALL)
+        .extrude(VESSEL_LENGTH - 2 * VESSEL_WALL)
     )
     vessel = outer.cut(inner)
+
+    # Heater head bore — hole through the top wall for the heater head to insert
+    heater_bore = (
+        cq.Workplane("XY")
+        .workplane(offset=VESSEL_LENGTH - VESSEL_WALL)
+        .circle(HEATER_HEAD_OD / 2)
+        .extrude(VESSEL_WALL)
+    )
+    vessel = vessel.cut(heater_bore)
 
     return vessel
 
