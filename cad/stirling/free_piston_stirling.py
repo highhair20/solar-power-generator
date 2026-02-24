@@ -253,12 +253,13 @@ def make_power_piston() -> cq.Workplane:
     # Main piston body
     piston = cq.Workplane("XY").circle(PISTON_OD / 2).extrude(PISTON_LENGTH)
 
-    # Magnet ring — attached to the piston, extends into alternator region
+    # Magnet ring — bonded concentrically around the piston, centered vertically
+    mag_z_offset = (PISTON_LENGTH - MAGNET_RING_LENGTH) / 2
     magnet = (
         cq.Workplane("XY")
-        .workplane(offset=PISTON_LENGTH)
+        .workplane(offset=mag_z_offset)
         .circle(MAGNET_RING_OD / 2)
-        .circle(MAGNET_RING_ID / 2)
+        .circle(PISTON_OD / 2)
         .extrude(MAGNET_RING_LENGTH)
     )
     piston = piston.union(magnet)
