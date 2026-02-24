@@ -31,6 +31,7 @@ A single heat engine cannot efficiently extract energy across the full temperatu
 - Highly DIY-feasible (one of the most popular DIY heat engine projects)
 - Quiet, long lifespan (50,000+ hours), low maintenance
 - Configuration: **Gamma-type** recommended for easier heat input from storage; air-charged for simpler sealing, helium for higher performance
+- Free-piston variant uses **magnetic springs** (opposing NdFeB ring magnets) instead of mechanical flexure springs — eliminates fatigue failure, the #1 life-limiting component
 - Heat rejection at ~250–300°C feeds Stage 2
 - DIY cost: $500–$3,000 for a 100 W – 1 kW system
 

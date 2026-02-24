@@ -52,6 +52,8 @@ A solar thermal power system with heat storage for on-demand electricity generat
 - [`cad/collector/receiver.py`](cad/collector/receiver.py) — Cavity receiver (steel shell, insulation, mounting flange)
 - [`cad/collector/assembly.py`](cad/collector/assembly.py) — Full collector assembly (dish + receiver at focal point)
 - [`cad/collector/export.py`](cad/collector/export.py) — Batch export to STEP/STL/DXF → `cad/collector/output/`
+- [`cad/stirling/gamma_stirling.py`](cad/stirling/gamma_stirling.py) — Gamma-type Stirling engine (two cylinders, crankshaft, flywheel)
+- [`cad/stirling/free_piston_stirling.py`](cad/stirling/free_piston_stirling.py) — Free-piston Stirling with linear alternator (sealed pressure vessel)
 
 ### Computational
 - [Tools](docs/computational/tools.md) — Software stack (FreeCAD, SolTrace, pymoo, etc.)
@@ -68,8 +70,10 @@ solar-power-generator/
 │   └── computational/     # Tools and workflows
 ├── src/                   # (Future) Simulation code
 ├── cad/
-│   └── collector/         # CadQuery scripts for dish & receiver
-│       └── output/        # Generated STEP/STL/DXF (gitignored)
+│   ├── collector/         # CadQuery scripts for dish & receiver
+│   │   └── output/        # Generated STEP/STL/DXF (gitignored)
+│   └── stirling/          # CadQuery scripts for Stirling engines
+│       └── output/        # Generated STEP/STL (gitignored)
 ├── simulations/           # (Future) CFD/FEA cases
 └── fabrication/           # (Future) Manufacturing outputs
 ```
