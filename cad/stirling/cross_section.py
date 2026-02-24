@@ -17,17 +17,20 @@ from free_piston_stirling import (
     make_magnetic_spring_moving,
     make_alternator_stator,
     make_cooler,
+    make_centering_magnet_floor,
     VESSEL_LENGTH,
     VESSEL_OD,
     HEATER_HEAD_LENGTH,
     HEATER_HEAD_OD,
     STATOR_OD,
+    STATOR_LENGTH,
     Z_DISPLACER,
     Z_PISTON,
     Z_ALTERNATOR,
     Z_MAG_FIXED,
     Z_MAG_MOVING,
     MAG_SPRING_LENGTH,
+    CENTER_MAG_FLOOR_Z,
 )
 
 
@@ -57,6 +60,10 @@ def build_cross_section() -> cq.Assembly:
     vessel = cut_half(make_pressure_vessel())
     assy.add(vessel, name="pressure_vessel", color=cq.Color("gray60"))
 
+    # Centering magnets
+    floor_mag = cut_half(make_centering_magnet_floor().translate((0, 0, CENTER_MAG_FLOOR_Z)))
+    assy.add(floor_mag, name="centering_mag_floor", color=cq.Color("magenta3"))
+
     # Heater head
     heater = cut_half(make_heater_head().translate((0, 0, VESSEL_LENGTH)))
     assy.add(heater, name="heater_head", color=cq.Color("firebrick"))
@@ -82,7 +89,7 @@ def build_cross_section() -> cq.Assembly:
     assy.add(stator, name="alternator_stator", color=cq.Color("darkgreen"))
 
     # Cooler fins
-    cooler = cut_half(make_cooler().translate((0, 0, Z_MAG_MOVING + MAG_SPRING_LENGTH + 5)))
+    cooler = cut_half(make_cooler().translate((0, 0, Z_ALTERNATOR + STATOR_LENGTH + 5)))
     assy.add(cooler, name="cooler", color=cq.Color("steelblue"))
 
     return assy
@@ -97,6 +104,9 @@ def export_svg_section():
 
     print("  Cutting pressure vessel...")
     parts.append(cut_half(make_pressure_vessel()))
+
+    print("  Cutting centering magnet...")
+    parts.append(cut_half(make_centering_magnet_floor().translate((0, 0, CENTER_MAG_FLOOR_Z))))
 
     print("  Cutting heater head...")
     parts.append(cut_half(make_heater_head().translate((0, 0, VESSEL_LENGTH))))
@@ -115,7 +125,7 @@ def export_svg_section():
     parts.append(cut_half(make_alternator_stator().translate((0, 0, Z_ALTERNATOR))))
 
     print("  Cutting cooler...")
-    parts.append(cut_half(make_cooler().translate((0, 0, Z_MAG_MOVING + MAG_SPRING_LENGTH + 5))))
+    parts.append(cut_half(make_cooler().translate((0, 0, Z_ALTERNATOR + STATOR_LENGTH + 5))))
 
     # Combine all parts into one compound shape
     print("  Combining all parts...")

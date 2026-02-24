@@ -40,12 +40,15 @@ DISPLACER_LENGTH = 50.0          # mm
 DISPLACER_WALL = 1.5             # mm — lightweight
 DISPLACER_ROD_DIA = 8.0          # mm
 
-# Magnetic spring (opposing permanent magnet rings)
-MAG_SPRING_OD = VESSEL_ID - 4.0    # mm — fits inside vessel with clearance
-MAG_SPRING_ID = DISPLACER_ROD_DIA + 6.0  # mm — clears displacer rod
+# Magnetic spring (wall-mounted opposing magnet rings)
+# Both rings hug the vessel wall / displacer edge, leaving the center
+# open for free gas flow between displacer and piston spaces.
+MAG_SPRING_FIXED_OD = VESSEL_ID            # mm — flush with vessel bore
+MAG_SPRING_FIXED_ID = VESSEL_ID - 12.0     # mm — 6mm radial thickness
+MAG_SPRING_MOVING_OD = DISPLACER_OD        # mm — flush with displacer outer edge
+MAG_SPRING_MOVING_ID = DISPLACER_OD - 12.0 # mm — 6mm radial thickness
 MAG_SPRING_LENGTH = 8.0           # mm — axial thickness of each magnet ring
 MAG_SPRING_GAP = 10.0             # mm — nominal gap between opposing rings
-MAG_SPRING_HOUSING_WALL = 2.0     # mm — retainer ring wall thickness
 
 # Power piston
 PISTON_OD = 70.0         # mm
@@ -69,13 +72,23 @@ COOLER_ZONE_LENGTH = 30.0  # mm — axial length of cooled region
 # Bounce space (gas spring behind power piston)
 BOUNCE_SPACE_LENGTH = 40.0  # mm
 
+# Magnetic centering stop (bottom of bounce space)
+# Repels the alternator magnet ring on the piston to hold it
+# at rest position and maintain bounce space volume for startup
+CENTER_MAG_OD = MAGNET_RING_OD         # mm — matches piston magnet ring OD
+CENTER_MAG_ID = MAGNET_RING_ID         # mm — matches piston magnet ring ID
+CENTER_MAG_LENGTH = 6.0                 # mm — axial thickness
+CENTER_MAG_FLOOR_Z = VESSEL_WALL        # sits on vessel floor
+
 # Internal layout positions (Z axis, 0 = bottom of vessel)
 Z_BOUNCE_END = 0.0
 Z_PISTON = BOUNCE_SPACE_LENGTH
 Z_ALTERNATOR = Z_PISTON + PISTON_LENGTH + 10
-Z_MAG_FIXED = Z_ALTERNATOR + MAGNET_RING_LENGTH + 15  # fixed magnet ring (vessel-mounted)
-Z_MAG_MOVING = Z_MAG_FIXED + MAG_SPRING_LENGTH + MAG_SPRING_GAP  # moving magnet ring (displacer-mounted)
-Z_DISPLACER = Z_MAG_MOVING + MAG_SPRING_LENGTH + 10
+# Magnetic spring sits directly below the displacer (no rod)
+# Work backward from vessel top to position displacer and springs
+Z_DISPLACER = 160.0  # displacer position (tuned to leave hot space above)
+Z_MAG_MOVING = Z_DISPLACER - MAG_SPRING_LENGTH  # bonded to displacer bottom
+Z_MAG_FIXED = Z_MAG_MOVING - MAG_SPRING_GAP - MAG_SPRING_LENGTH  # fixed ring below gap
 Z_HEATER = VESSEL_LENGTH
 
 
@@ -109,6 +122,22 @@ def make_pressure_vessel() -> cq.Workplane:
     vessel = vessel.cut(heater_bore)
 
     return vessel
+
+
+def make_centering_magnet_floor() -> cq.Workplane:
+    """Fixed magnet ring on the vessel floor inside the bounce space.
+
+    Sized to match the alternator magnet ring on the piston.
+    Repels the piston's existing magnet ring to hold it at rest
+    position and maintain bounce space volume for startup.
+    """
+    magnet = (
+        cq.Workplane("XY")
+        .circle(CENTER_MAG_OD / 2)
+        .circle(CENTER_MAG_ID / 2)
+        .extrude(CENTER_MAG_LENGTH)
+    )
+    return magnet
 
 
 def make_heater_head() -> cq.Workplane:
@@ -154,9 +183,11 @@ def make_heater_head() -> cq.Workplane:
 
 
 def make_displacer() -> cq.Workplane:
-    """Free-floating displacer — lightweight hollow cylinder with rod.
+    """Free-floating displacer — lightweight hollow cylinder, no rod.
 
     Oscillates in the hot space driven by pressure differential.
+    Centered by clearance seal to vessel bore (2mm gap).
+    Moving magnetic spring ring bonds directly to the bottom cap.
     """
     # Hollow cylinder
     outer = cq.Workplane("XY").circle(DISPLACER_OD / 2).extrude(DISPLACER_LENGTH)
@@ -182,67 +213,38 @@ def make_displacer() -> cq.Workplane:
     )
     displacer = displacer.union(top_cap).union(bottom_cap)
 
-    # Displacer rod extending downward (toward power piston)
-    rod_length = Z_DISPLACER - Z_MAG_FIXED - 10
-    rod = (
-        cq.Workplane("XY")
-        .workplane(offset=-DISPLACER_WALL)
-        .circle(DISPLACER_ROD_DIA / 2)
-        .extrude(-rod_length)
-    )
-    displacer = displacer.union(rod)
-
     return displacer
 
 
 def make_magnetic_spring_fixed() -> cq.Workplane:
-    """Fixed magnet ring — mounted to pressure vessel wall.
+    """Fixed magnet ring — mounted to vessel inner wall.
 
-    NdFeB ring magnet with a retainer housing. Polarized axially
-    to repel the moving ring on the displacer rod.
+    NdFeB ring magnet hugging the bore wall. Center is completely
+    open for gas flow. Polarized axially to repel the moving ring
+    on the displacer's outer edge.
     """
-    # Retainer housing (non-magnetic, e.g. aluminum or stainless)
-    housing = (
-        cq.Workplane("XY")
-        .circle(MAG_SPRING_OD / 2 + MAG_SPRING_HOUSING_WALL)
-        .circle(MAG_SPRING_ID / 2 - MAG_SPRING_HOUSING_WALL)
-        .extrude(MAG_SPRING_LENGTH)
-    )
-
-    # Magnet ring (inset into housing)
     magnet = (
         cq.Workplane("XY")
-        .circle(MAG_SPRING_OD / 2)
-        .circle(MAG_SPRING_ID / 2)
+        .circle(MAG_SPRING_FIXED_OD / 2)
+        .circle(MAG_SPRING_FIXED_ID / 2)
         .extrude(MAG_SPRING_LENGTH)
     )
-
-    return housing.union(magnet)
+    return magnet
 
 
 def make_magnetic_spring_moving() -> cq.Workplane:
-    """Moving magnet ring — attached to displacer rod.
+    """Moving magnet ring — bonded to displacer outer edge at bottom.
 
-    Polarized to repel the fixed ring. Rides on the displacer rod
-    and oscillates with it, providing the restoring force.
+    Hugs the displacer's outer diameter. Polarized to repel the
+    fixed wall ring below. Center is open for gas flow.
     """
-    # Magnet ring
     magnet = (
         cq.Workplane("XY")
-        .circle(MAG_SPRING_OD / 2)
-        .circle(MAG_SPRING_ID / 2)
+        .circle(MAG_SPRING_MOVING_OD / 2)
+        .circle(MAG_SPRING_MOVING_ID / 2)
         .extrude(MAG_SPRING_LENGTH)
     )
-
-    # Hub connecting magnet to displacer rod
-    hub = (
-        cq.Workplane("XY")
-        .circle(MAG_SPRING_ID / 2)
-        .circle(DISPLACER_ROD_DIA / 2)
-        .extrude(MAG_SPRING_LENGTH)
-    )
-
-    return magnet.union(hub)
+    return magnet
 
 
 def make_power_piston() -> cq.Workplane:
@@ -328,12 +330,13 @@ def make_free_piston_stirling() -> cq.Assembly:
 
     Layout (Z axis, bottom to top):
     - Bounce space (sealed gas spring)
-    - Power piston + magnet ring
+    - Centering magnet (vessel floor, repels piston magnet ring)
+    - Power piston + magnet ring (concentric)
     - Alternator stator (external)
-    - Magnetic spring (fixed ring, vessel-mounted)
-    - Magnetic spring (moving ring, displacer-mounted)
-    - Displacer
     - Cooler fins (external)
+    - Magnetic spring fixed ring (vessel-mounted)
+    - Magnetic spring moving ring (bonded to displacer bottom)
+    - Displacer (no rod, clearance-sealed)
     - Heater head
     """
     assy = cq.Assembly(name="free_piston_stirling")
@@ -341,6 +344,11 @@ def make_free_piston_stirling() -> cq.Assembly:
     print("  Building pressure vessel...")
     vessel = make_pressure_vessel()
     assy.add(vessel, name="pressure_vessel", color=cq.Color("gray60"))
+
+    print("  Building centering magnet...")
+    floor_mag = make_centering_magnet_floor()
+    floor_mag = floor_mag.translate((0, 0, CENTER_MAG_FLOOR_Z))
+    assy.add(floor_mag, name="centering_mag_floor", color=cq.Color("magenta3"))
 
     print("  Building heater head...")
     heater = make_heater_head()
@@ -374,8 +382,8 @@ def make_free_piston_stirling() -> cq.Assembly:
 
     print("  Building cooler fins...")
     cooler = make_cooler()
-    # Position cooler around the vessel between spring and heater
-    cooler_z = Z_MAG_MOVING + MAG_SPRING_LENGTH + 5
+    # Position cooler between alternator and magnetic spring (cold zone)
+    cooler_z = Z_ALTERNATOR + STATOR_LENGTH + 5
     cooler = cooler.translate((0, 0, cooler_z))
     assy.add(cooler, name="cooler", color=cq.Color("steelblue"))
 
