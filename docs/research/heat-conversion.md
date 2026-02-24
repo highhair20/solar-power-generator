@@ -43,6 +43,41 @@ A single heat engine cannot efficiently extract energy across the full temperatu
 | Beta | Single cylinder, displacer + power piston | Moderate | Compact design |
 | Gamma | Separate cylinders, shared gas space | High | External heat input |
 
+### Free-Piston Stirling Design (Target Architecture)
+
+A sealed pressure vessel filled with pressurized helium. No crankshaft, no sliding seals, no connecting rod. Every internal part floats freely.
+
+#### Components (bottom to top)
+
+1. **Vessel floor** — sealed bottom of the pressure vessel
+2. **Centering magnet** — magnet ring on the floor that repels the piston's magnet ring, keeping the piston suspended at rest so the bounce space always has volume for startup
+3. **Bounce space** — gas volume between the floor and piston, acts as a gas spring
+4. **Power piston** — heavy free-floating cylinder with a permanent magnet ring bonded concentrically around it
+5. **Alternator stator** — coil housing wrapped around the *outside* of the vessel, aligned with the piston's magnet ring
+6. **Cooler fins** — external fins on the vessel for heat rejection
+7. **Open gas space** — center bore is wide open for free gas flow between piston and displacer
+8. **Magnetic spring, fixed ring** — thin magnet ring mounted to the vessel inner wall
+9. **Magnetic spring, moving ring** — thin magnet ring bonded to the outer edge of the displacer's bottom face, repels the fixed ring below
+10. **Displacer** — lightweight hollow cylinder that shuttles gas between hot and cold zones, centered by clearance seal (no rod)
+11. **Hot space** — gas volume above the displacer
+12. **Heater head** — finned cap that inserts into the vessel top, absorbs concentrated solar heat
+
+#### Operating Cycle (~50-60 Hz)
+
+1. **Displacer drops** → gas flows up into the hot space near the heater head → heats up → pressure rises
+2. **High pressure pushes piston down** → compresses bounce space gas → magnet ring sweeps past stator coils → electricity generated
+3. **Displacer rises** → wall-mounted magnetic spring rings push it back up → gas displaced down past cooler fins → gas cools → pressure drops
+4. **Bounce space pushes piston back up** → compressed gas spring expands → magnet ring sweeps past stator again → more electricity
+
+#### Key Design Choices
+
+- **No rod** — displacer floats freely, centered by 2mm clearance gap to bore. Magnetic spring ring on its outer edge provides restoring force.
+- **Wall-mounted magnetic springs** — both fixed and moving rings hug the vessel wall and displacer edge, leaving the entire center bore (74mm) open for gas flow.
+- **No mechanical springs** — magnetic repulsion replaces flexure springs. No fatigue failure, no wear, indefinite life.
+- **No sliding seals** — both piston and displacer use clearance seals. At 50-60 Hz, gas doesn't have time to leak through the tiny gaps.
+- **Centering magnet** — repels the existing alternator magnet ring on the piston to hold it at rest position.
+- **Fully sealed** — pressurized helium stays inside permanently. Only AC electricity exits through stator wires.
+
 ---
 
 ## Stage 2: Medium Temperature (300→100°C) — Organic Rankine Cycle (ORC)
