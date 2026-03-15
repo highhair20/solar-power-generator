@@ -11,6 +11,7 @@ import cadquery as cq
 from free_piston_stirling import (
     make_pressure_vessel,
     make_heater_head,
+    make_heater_internal_fins,
     make_displacer,
     make_power_piston,
     make_magnetic_spring_fixed,
@@ -18,17 +19,20 @@ from free_piston_stirling import (
     make_alternator_stator,
     make_cooler,
     make_centering_magnet_floor,
+    make_internal_cooler,
+    make_regenerator,
     VESSEL_LENGTH,
     VESSEL_OD,
     HEATER_HEAD_LENGTH,
     HEATER_HEAD_OD,
     STATOR_OD,
-    STATOR_LENGTH,
     Z_DISPLACER,
     Z_PISTON,
     Z_ALTERNATOR,
     Z_MAG_FIXED,
     Z_MAG_MOVING,
+    Z_COOLER_INT,
+    Z_REGEN,
     MAG_SPRING_LENGTH,
     CENTER_MAG_FLOOR_Z,
 )
@@ -68,29 +72,41 @@ def build_cross_section() -> cq.Assembly:
     heater = cut_half(make_heater_head().translate((0, 0, VESSEL_LENGTH)))
     assy.add(heater, name="heater_head", color=cq.Color("firebrick"))
 
+    # Heater internal fins
+    int_fins = cut_half(make_heater_internal_fins().translate((0, 0, VESSEL_LENGTH)))
+    assy.add(int_fins, name="heater_internal_fins", color=cq.Color("firebrick"))
+
     # Displacer
     displacer = cut_half(make_displacer().translate((0, 0, Z_DISPLACER)))
     assy.add(displacer, name="displacer", color=cq.Color("orange"))
 
-    # Magnetic spring — fixed
+    # Magnetic spring — fixed (SmCo)
     mag_fixed = cut_half(make_magnetic_spring_fixed().translate((0, 0, Z_MAG_FIXED)))
     assy.add(mag_fixed, name="mag_spring_fixed", color=cq.Color("red3"))
 
-    # Magnetic spring — moving
+    # Magnetic spring — moving (SmCo)
     mag_moving = cut_half(make_magnetic_spring_moving().translate((0, 0, Z_MAG_MOVING)))
     assy.add(mag_moving, name="mag_spring_moving", color=cq.Color("red1"))
 
-    # Power piston + magnets
+    # Power piston + magnets (89mm OD, clearance seal)
     piston = cut_half(make_power_piston().translate((0, 0, Z_PISTON)))
     assy.add(piston, name="power_piston", color=cq.Color("goldenrod"))
 
-    # Alternator stator
+    # Alternator stator (55mm long)
     stator = cut_half(make_alternator_stator().translate((0, 0, Z_ALTERNATOR)))
     assy.add(stator, name="alternator_stator", color=cq.Color("darkgreen"))
 
-    # Cooler fins
-    cooler = cut_half(make_cooler().translate((0, 0, Z_ALTERNATOR + STATOR_LENGTH + 5)))
+    # External cooler fins (aligned with internal cooler zone)
+    cooler = cut_half(make_cooler().translate((0, 0, Z_COOLER_INT)))
     assy.add(cooler, name="cooler", color=cq.Color("steelblue"))
+
+    # Internal cooler (full-bore tube bundle)
+    int_cooler = cut_half(make_internal_cooler().translate((0, 0, Z_COOLER_INT)))
+    assy.add(int_cooler, name="internal_cooler", color=cq.Color(0.12, 0.56, 1.0))
+
+    # Regenerator (full-bore packed mesh)
+    regen = cut_half(make_regenerator().translate((0, 0, Z_REGEN)))
+    assy.add(regen, name="regenerator", color=cq.Color(0.13, 0.55, 0.13))
 
     return assy
 
@@ -99,7 +115,6 @@ def export_svg_section():
     """Export a 2D projected SVG of the cross-section view from the front (looking along Y axis)."""
     print("Building cross-section components individually...")
 
-    # Build each half-cut component as a compound for 2D projection
     parts = []
 
     print("  Cutting pressure vessel...")
@@ -110,6 +125,9 @@ def export_svg_section():
 
     print("  Cutting heater head...")
     parts.append(cut_half(make_heater_head().translate((0, 0, VESSEL_LENGTH))))
+
+    print("  Cutting heater internal fins...")
+    parts.append(cut_half(make_heater_internal_fins().translate((0, 0, VESSEL_LENGTH))))
 
     print("  Cutting displacer...")
     parts.append(cut_half(make_displacer().translate((0, 0, Z_DISPLACER))))
@@ -124,8 +142,14 @@ def export_svg_section():
     print("  Cutting alternator stator...")
     parts.append(cut_half(make_alternator_stator().translate((0, 0, Z_ALTERNATOR))))
 
-    print("  Cutting cooler...")
-    parts.append(cut_half(make_cooler().translate((0, 0, Z_ALTERNATOR + STATOR_LENGTH + 5))))
+    print("  Cutting cooler fins...")
+    parts.append(cut_half(make_cooler().translate((0, 0, Z_COOLER_INT))))
+
+    print("  Cutting internal cooler...")
+    parts.append(cut_half(make_internal_cooler().translate((0, 0, Z_COOLER_INT))))
+
+    print("  Cutting regenerator...")
+    parts.append(cut_half(make_regenerator().translate((0, 0, Z_REGEN))))
 
     # Combine all parts into one compound shape
     print("  Combining all parts...")
@@ -158,7 +182,7 @@ if __name__ == "__main__":
         combined,
         svg_path,
         opt={
-            "projectionDir": (0, -1, 0),  # looking along Y toward cut face
+            "projectionDir": (0, -1, 0),
             "showHidden": False,
             "strokeWidth": 0.3,
             "width": 600,

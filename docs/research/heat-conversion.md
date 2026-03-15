@@ -31,7 +31,7 @@ A single heat engine cannot efficiently extract energy across the full temperatu
 - Highly DIY-feasible (one of the most popular DIY heat engine projects)
 - Quiet, long lifespan (50,000+ hours), low maintenance
 - Configuration: **Gamma-type** recommended for easier heat input from storage; air-charged for simpler sealing, helium for higher performance
-- Free-piston variant uses **magnetic springs** (opposing NdFeB ring magnets) instead of mechanical flexure springs — eliminates fatigue failure, the #1 life-limiting component
+- Free-piston variant uses **magnetic springs** (opposing SmCo ring magnets) instead of mechanical flexure springs — eliminates fatigue failure, the #1 life-limiting component. SmCo (samarium cobalt) chosen over NdFeB for high-temperature operation near the displacer (rated to 300°C vs NdFeB's 150°C limit).
 - Heat rejection at ~250–300°C feeds Stage 2
 - DIY cost: $500–$3,000 for a 100 W – 1 kW system
 
@@ -52,15 +52,16 @@ A sealed pressure vessel filled with pressurized helium. No crankshaft, no slidi
 1. **Vessel floor** — sealed bottom of the pressure vessel
 2. **Centering magnet** — magnet ring on the floor that repels the piston's magnet ring, keeping the piston suspended at rest so the bounce space always has volume for startup
 3. **Bounce space** — gas volume between the floor and piston, acts as a gas spring
-4. **Power piston** — heavy free-floating cylinder with a permanent magnet ring bonded concentrically around it
-5. **Alternator stator** — coil housing wrapped around the *outside* of the vessel, aligned with the piston's magnet ring
-6. **Cooler fins** — external fins on the vessel for heat rejection
-7. **Open gas space** — center bore is wide open for free gas flow between piston and displacer
-8. **Magnetic spring, fixed ring** — thin magnet ring mounted to the vessel inner wall
-9. **Magnetic spring, moving ring** — thin magnet ring bonded to the outer edge of the displacer's bottom face, repels the fixed ring below
-10. **Displacer** — lightweight hollow cylinder that shuttles gas between hot and cold zones, centered by clearance seal (no rod)
-11. **Hot space** — gas volume above the displacer
-12. **Heater head** — finned cap that inserts into the vessel top, absorbs concentrated solar heat
+4. **Power piston** — heavy free-floating cylinder (89mm OD, 0.5mm radial clearance seal in 90mm bore) with a permanent magnet ring recessed concentrically around it
+5. **Alternator stator** — 55mm coil housing wrapped around the *outside* of the vessel, aligned with the piston's magnet ring (sized for 10-15mm stroke)
+6. **External cooler fins** — annular fins on the vessel for heat rejection, aligned with internal cooler
+7. **Internal cooler** — full-bore tube bundle (48 tubes × 3mm dia) spanning the entire bore cross-section. No center bypass — gas must flow through tubes for heat transfer to the vessel wall.
+8. **Regenerator** — full-bore packed wire mesh housing (45mm long, 80-mesh SS316 stacked screens, ~70% porosity). Fills entire bore. Recovers 90-95% of heat between hot and cold spaces.
+9. **Magnetic spring, fixed ring** — SmCo magnet ring mounted to the vessel inner wall
+10. **Magnetic spring, moving ring** — SmCo magnet ring bonded to the outer edge of the displacer's bottom face, repels the fixed ring below (20mm nominal gap for 10-15mm stroke)
+11. **Displacer** — lightweight hollow cylinder that shuttles gas between hot and cold zones, centered by clearance seal (0.75mm radial gap, no rod)
+12. **Hot space** — 12mm gas volume above the displacer (minimized dead volume)
+13. **Heater head** — finned cap that inserts into the vessel top, absorbs concentrated solar heat. 12 internal radial fins increase gas-side heat transfer area 3-5x.
 
 #### Operating Cycle (~50-60 Hz)
 
@@ -72,9 +73,12 @@ A sealed pressure vessel filled with pressurized helium. No crankshaft, no slidi
 #### Key Design Choices
 
 - **No rod** — displacer floats freely, centered by 2mm clearance gap to bore. Magnetic spring ring on its outer edge provides restoring force.
-- **Wall-mounted magnetic springs** — both fixed and moving rings hug the vessel wall and displacer edge, leaving the entire center bore (74mm) open for gas flow.
+- **Wall-mounted magnetic springs (SmCo)** — both fixed and moving rings hug the vessel wall and displacer edge. SmCo magnets rated to 300°C for reliable operation near the hot displacer. 20mm nominal gap allows full 10-15mm displacer stroke.
 - **No mechanical springs** — magnetic repulsion replaces flexure springs. No fatigue failure, no wear, indefinite life.
-- **No sliding seals** — both piston and displacer use clearance seals. At 50-60 Hz, gas doesn't have time to leak through the tiny gaps.
+- **No sliding seals** — both piston (0.5mm gap) and displacer (0.75mm gap) use clearance seals. At 50-60 Hz, gas doesn't have time to leak through the tiny gaps.
+- **Full-bore heat exchangers** — cooler tube bundle and regenerator mesh fill the entire bore cross-section. No center bypass path — all gas is forced through the heat exchangers.
+- **Minimized dead volume** — 12mm hot space, 3mm piston-to-cooler gap, full-bore HXs. Dead volume ratio ~0.7:1 (target < 1.0:1).
+- **Internal heater fins** — 12 radial fins inside the heater head increase gas-side heat transfer area 3-5x, reducing gas temperature drop from ~109°C to ~25-35°C.
 - **Centering magnet** — repels the existing alternator magnet ring on the piston to hold it at rest position.
 - **Fully sealed** — pressurized helium stays inside permanently. Only AC electricity exits through stator wires.
 
