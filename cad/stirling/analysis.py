@@ -292,7 +292,10 @@ def evaluate(params=None):
 
     NTU_hot = h_hot_space * A_hot_wall_m2 / (m_hot * g["cp"] * p["freq"]) if m_hot > 0 else 100
 
-    # Cold space: piston face + cylinder wall
+    # Cold space: piston face + cylinder wall + COOLER TUBES
+    # The cooler is the primary cold-side heat exchanger. Gas flows through
+    # the cooler tubes each half-cycle; their heat transfer largely determines
+    # how well the gas returns to T_cold for the compression stroke.
     A_cold_wall_m2 = _mm2_m2(bore_area + math.pi * p["vessel_id"] *
                               p["piston_cooler_gap"])
     V_cold_m3 = _mm3_m3(V_cold_dead + V_swept_piston / 2)
@@ -301,12 +304,33 @@ def evaluate(params=None):
     L_cold = _mm2m(p["piston_cooler_gap"])
     v_cold = math.pi * _mm2m(p["piston_stroke"]) * p["freq"]
     Re_cold_ws = rho_cold_ws * v_cold * max(L_cold, 1e-4) / g_cold["mu"]
-    Nu_cold = 0.75 * max(Re_cold_ws, 1)**0.7
-    h_cold_space = Nu_cold * g_cold["k"] / max(L_cold, 1e-4)
+    Nu_cold_ws = 0.75 * max(Re_cold_ws, 1)**0.7
+    h_cold_space = Nu_cold_ws * g_cold["k"] / max(L_cold, 1e-4)
 
-    NTU_cold = h_cold_space * A_cold_wall_m2 / (m_cold * g["cp"] * p["freq"]) if m_cold > 0 else 100
+    # Cooler tube contribution (primary cold-side HX)
+    _tube_Dh = _mm2m(p["cooler_tube_dia"])
+    _tube_flow_area = (p["cooler_tube_count"] * math.pi / 4 *
+                       _mm2m(p["cooler_tube_dia"])**2)
+    _tube_wetted_perim = p["cooler_tube_count"] * math.pi * _mm2m(p["cooler_tube_dia"])
+    _V_dot_piston = _mm2_m2(bore_area) * v_cold
+    _u_cooler = _V_dot_piston / _tube_flow_area if _tube_flow_area > 0 else 1e6
+    _Re_cooler = rho_cold_ws * _u_cooler * _tube_Dh / g_cold["mu"]
+    if _Re_cooler > 2300:
+        _Nu_cooler = 0.023 * _Re_cooler**0.8 * g_cold["Pr"]**0.4
+    else:
+        _Nu_cooler = 3.66
+    _h_cooler = _Nu_cooler * g_cold["k"] / _tube_Dh
+    _A_cooler = _tube_wetted_perim * _mm2m(p["cooler_length"])
 
-    # Combined adiabatic efficiency: harmonic mean of hot and cold NTUs
+    # Include cooler gas inventory in cold-side thermal mass
+    V_cooler_m3 = _mm3_m3(V_cooler_dead)
+    m_cold_total = rho_cold_ws * (V_cold_m3 + V_cooler_m3)
+
+    # Combined cold-side hA: working space walls + cooler tubes
+    hA_cold_total = h_cold_space * A_cold_wall_m2 + _h_cooler * _A_cooler
+    NTU_cold = hA_cold_total / (m_cold_total * g["cp"] * p["freq"]) if m_cold_total > 0 else 100
+
+    # Combined adiabatic efficiency
     eta_adia_hot = NTU_hot / (1 + NTU_hot)
     eta_adia_cold = NTU_cold / (1 + NTU_cold)
     eta_adia = eta_adia_hot * eta_adia_cold  # both spaces must transfer heat
@@ -848,6 +872,15 @@ def evaluate(params=None):
         "eta_carnot_fraction": eta_carnot_fraction_actual,
         "eta_alternator": eta_alternator,
         "eta_adia": eta_adia,
+        "eta_adia_hot": eta_adia_hot,
+        "eta_adia_cold": eta_adia_cold,
+        "NTU_hot": NTU_hot,
+        "NTU_cold": NTU_cold,
+        "h_hot_space": h_hot_space,
+        "h_cold_space": h_cold_space,
+        "A_hot_wall_m2": A_hot_wall_m2,
+        "A_cold_wall_m2": A_cold_wall_m2,
+        "Re_hot": Re_hot,
         "Beale_number": Bn_implied,
         "k_displacer": k_displacer,
         "k_vessel": k_vessel,
