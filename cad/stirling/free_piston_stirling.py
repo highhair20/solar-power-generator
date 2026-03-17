@@ -114,6 +114,13 @@ CENTER_MAG_ID = MAGNET_RING_ID         # mm — matches piston magnet ring ID
 CENTER_MAG_LENGTH = 6.0                 # mm — axial thickness
 CENTER_MAG_FLOOR_Z = VESSEL_WALL        # sits on vessel floor
 
+# Helium fill tube — small stainless tube stub on the vessel bottom (cool end).
+# Used to evacuate, backfill with helium to charge pressure, then pinch-weld shut.
+FILL_TUBE_OD = 6.0          # mm — standard 1/4" stainless tube
+FILL_TUBE_ID = 4.0          # mm — 1mm wall thickness
+FILL_TUBE_LENGTH = 20.0     # mm — protrudes below vessel floor
+FILL_TUBE_OFFSET_X = 25.0   # mm — offset from center to clear centering magnet
+
 # Internal layout positions (Z axis, 0 = bottom of vessel)
 Z_BOUNCE_END = 0.0
 Z_PISTON = BOUNCE_SPACE_LENGTH
@@ -160,7 +167,36 @@ def make_pressure_vessel() -> cq.Workplane:
     )
     vessel = vessel.cut(heater_bore)
 
+    # Fill tube bore — through-hole in the bottom wall for helium charging
+    fill_bore = (
+        cq.Workplane("XY")
+        .center(FILL_TUBE_OFFSET_X, 0)
+        .circle(FILL_TUBE_ID / 2)
+        .extrude(VESSEL_WALL)
+    )
+    vessel = vessel.cut(fill_bore)
+
     return vessel
+
+
+def make_fill_tube() -> cq.Workplane:
+    """Helium fill/charge tube — small stainless tube stub on the vessel bottom.
+
+    Offset from center to clear the centering magnet. After assembly,
+    the vessel is evacuated through this tube, backfilled with helium
+    to 20-30 bar charge pressure, then the tube is crimped and seal-welded
+    shut (standard refrigeration industry technique).
+
+    Protrudes downward from the vessel floor.
+    """
+    tube = (
+        cq.Workplane("XY")
+        .center(FILL_TUBE_OFFSET_X, 0)
+        .circle(FILL_TUBE_OD / 2)
+        .circle(FILL_TUBE_ID / 2)
+        .extrude(-FILL_TUBE_LENGTH)
+    )
+    return tube
 
 
 def make_centering_magnet_floor() -> cq.Workplane:
@@ -521,7 +557,8 @@ def make_free_piston_stirling() -> cq.Assembly:
     """Full free-piston Stirling engine assembly.
 
     Layout (Z axis, bottom to top):
-    - Z=0           Vessel floor (sealed)
+    - Z=-20         Fill tube (helium charge port, pinch-weld sealed)
+    - Z=0           Vessel floor
     - Z=5           Centering magnet (repels piston magnet ring)
     - Z=0-40        Bounce space
     - Z=40          Power piston (89mm OD, 0.5mm clearance seal)
@@ -548,6 +585,10 @@ def make_free_piston_stirling() -> cq.Assembly:
     print("  Building pressure vessel...")
     vessel = make_pressure_vessel()
     assy.add(vessel, name="pressure_vessel", color=cq.Color("gray60"))
+
+    print("  Building fill tube...")
+    fill_tube = make_fill_tube()
+    assy.add(fill_tube, name="fill_tube", color=cq.Color("gray40"))
 
     print("  Building centering magnet...")
     floor_mag = make_centering_magnet_floor()

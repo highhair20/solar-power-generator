@@ -1,22 +1,87 @@
 # Solar Power Generator
 
-A concentrated solar power (CSP) system with thermal storage and hybrid cascade conversion.
+A solar thermal power generator — it converts sunlight to heat, stores it, then converts heat to electricity on demand.
 
-## Overview
+## How It Works
 
-This project aims to build a solar thermal power generation system that:
-- Collects solar energy using concentrated solar power (Scheffler reflector or parabolic dish)
-- Stores energy as heat in a sand battery (500-600°C)
-- Converts stored heat to electricity using a three-stage cascade:
-  - Stage 1: Stirling engine (600°C → 300°C)
-  - Stage 2: ORC or Tesla turbine (300°C → 100°C)
-  - Stage 3: TEG (100°C → 40°C)
+**Collection:** A 1m parabolic dish concentrates sunlight onto a cavity receiver, heating a working fluid to 500-600°C.
+
+**Storage:** The heat goes into a sand battery (inspired by Polar Night Energy), allowing electricity generation even when the sun isn't shining.
+
+**Conversion:** A three-stage cascade extracts electricity at different temperature ranges:
+
+1. **Stirling engine** (600→300°C, 15-25% efficiency) — the primary converter, using a free-piston design with pressurized helium
+2. **Organic Rankine Cycle** (300→100°C, 10-15%) — captures mid-grade heat
+3. **Thermoelectric generators** (100→40°C, 3-5%) — scavenges remaining low-grade heat
+
+Leftover heat (~40°C) provides hot water/space heating, pushing total energy utilization to 60-80%.
+
+## Current State
+
+The project is in **research & design** phase:
+
+- **Docs** in `docs/` cover research on each subsystem and design specs
+- **CAD models** in `cad/` include parametric CadQuery scripts for the parabolic dish, cavity receiver, and two Stirling engine designs (gamma-type and free-piston)
+- **Analysis code** in `cad/stirling/` for thermodynamic modeling and optimization
 
 ## Design Constraints
 
-- **Non-toxic materials only**: No exotic or hazardous substances
-- **Green to build**: Environmentally responsible manufacturing
-- **Maximum efficiency**: Optimized at every stage
+- **No toxic or exotic materials** — everything commonly available, unlike PV panels that use lead/cadmium
+- **Green to build** — minimal environmental impact in manufacturing
+- **Maximum efficiency** — target 30% solar-to-electric (up from ~18% baseline), with the Stirling engine being the biggest lever
+
+A 24" Edmund Optics dish serves as the prototype test platform before scaling to the full 1m dish.
+
+## Stirling Engine Optimizer
+
+The optimizer (`cad/stirling/optimize.py`) uses a computational engineering loop to search for optimal Stirling engine geometries:
+
+```
+Design variables → analysis.evaluate() → Score/constraints → NSGA-II → Better designs
+```
+
+### Physics Model (`cad/stirling/analysis.py`)
+
+A first-principles thermodynamic model that computes performance from 7 loss mechanisms rather than a simple "fraction of Carnot" estimate:
+
+1. **Pumping loss** — pressure drop through heat exchangers (Kays & London correlations)
+2. **Shuttle heat loss** — displacer thermal shuttling (Urieli & Berchowitz)
+3. **Displacer/vessel wall conduction** — axial heat leak through the shell
+4. **Regenerator enthalpy loss** — imperfect heat recovery (1 - effectiveness)
+5. **Gas spring hysteresis** — irreversible compression in the bounce space
+6. **Seal leakage** — pressure-volume work lost through clearance gaps
+
+Uses the **Schmidt cycle** (isothermal, sinusoidal motion) as the ideal baseline, then subtracts each loss to get net electrical output.
+
+### Optimization (`cad/stirling/optimize.py`)
+
+Uses **pymoo's NSGA-II** (multi-objective genetic algorithm) with:
+
+**22 design variables** — geometry parameters like piston/displacer stroke, frequency, charge pressure, cooler tube count/diameter, regenerator length/porosity, clearances, phase angle, etc.
+
+**2 objectives** (Pareto front):
+1. Maximize electrical power
+2. Minimize dead volume ratio
+
+**7 constraints** that must all be satisfied:
+- Regenerator effectiveness > 90%
+- Total HX pressure drop < 5% of mean pressure
+- Heater gas temperature drop < 80°C
+- Piston and displacer seal leakage < 5% each
+- Natural frequency > 10 Hz
+- Electrical output >= 60 W
+
+Default run: **120 population × 100 generations** (~12,000 design evaluations). Uses Latin Hypercube Sampling for the initial population, SBX crossover, and polynomial mutation.
+
+The output includes a summary table of top Pareto-front designs and can generate CAD parameter updates (`--cad` flag) to directly update the 3D model with optimized dimensions.
+
+```bash
+python optimize.py              # run optimization
+python optimize.py --gens 200   # more generations
+python optimize.py --pop 200    # larger population
+python optimize.py --report     # detailed report for best design
+python optimize.py --cad        # print CAD parameter update block
+```
 
 ## Project Structure
 
@@ -25,20 +90,15 @@ This project aims to build a solar thermal power generation system that:
 │   ├── research/      # Research notes and findings
 │   ├── design/        # System design documentation
 │   └── computational/ # Simulation and optimization workflows
-├── src/
-│   ├── collector/     # Solar collector control and sensors
-│   ├── storage/       # Thermal storage monitoring
-│   ├── conversion/    # Heat-to-electricity conversion
-│   ├── electrical/    # Power output management
-│   ├── common/        # Shared utilities and base classes
-│   ├── simulation/    # Physics simulation modules
-│   └── supervisor/    # System state machine and safety
-└── config/            # Configuration files (future)
+├── cad/
+│   ├── collector/     # CadQuery scripts for dish & receiver
+│   │   └── output/    # Generated STEP/STL/DXF
+│   └── stirling/      # CadQuery scripts + analysis/optimizer
+│       └── output/    # Generated STEP/STL
+├── src/               # (Future) Simulation code
+├── simulations/       # (Future) CFD/FEA cases
+└── fabrication/       # (Future) Manufacturing outputs
 ```
-
-## Status
-
-Currently in research and early development phase.
 
 ## License
 
