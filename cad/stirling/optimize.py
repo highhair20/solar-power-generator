@@ -78,9 +78,23 @@ DESIGN_VARS = [
     ("heater_int_fin_height", 10.0,  30.0,  "Heater fin height (mm)"),
     ("heater_int_fin_length", 15.0,  38.0,  "Heater fin length (mm)"),
     ("k_displacer",           2.0,   16.0,  "Displacer thermal cond (W/mK)"),
-    ("k_vessel",              2.0,   16.0,  "Vessel thermal cond (W/mK)"),
+    # k_vessel is the OUTER structural shell (must be metal: Ti=7, SS=16).
+    # Lower bound = 7 (titanium minimum) — ceramic cannot contain 11 bar pressure.
+    ("k_vessel",              7.0,   16.0,  "Vessel outer shell thermal cond (W/mK)"),
+    ("vessel_liner_k",        2.0,    7.0,  "Vessel inner liner thermal cond (W/mK)"),
+    ("vessel_liner_frac",     0.0,    0.5,  "Vessel liner fraction of wall thickness"),
     ("displacer_wall",        0.5,    3.0,  "Displacer wall thickness (mm)"),
     ("displacer_length",     25.0,   80.0,  "Displacer length (mm)"),
+
+    # Displacer spring stiffness (Fix 3: replaces free phase_angle variable).
+    # Phase angle EMERGES from dynamics; k_d is the real design handle.
+    # At k_d = m_d × ω², phase → 90° (optimal).
+    ("displacer_spring_k",   500.0, 50000.0, "Displacer spring stiffness (N/m)"),
+
+    # Linear alternator coil parameters (previously fixed, now optimized)
+    ("coil_turns",          100.0,  400.0,  "Coil turns (total)"),
+    ("coil_wire_dia",         0.8,    2.5,  "Coil wire diameter (mm)"),
+    ("coil_layers",           2.0,    8.0,  "Coil radial layers"),
 ]
 
 N_VAR = len(DESIGN_VARS)
@@ -99,18 +113,23 @@ class StirlingProblem(Problem):
     Constraints (g <= 0 means satisfied):
         g0: 0.90 - regen_effectiveness    (must be > 90%)
         g1: dp_total_frac - 0.05          (must be < 5%)
-        g2: dT_heater - 50               (must be < 50°C)
+        g2: dT_heater - 80               (must be < 80°C)
         g3: leak_piston_pct - 5           (must be < 5%)
         g4: leak_displacer_pct - 5        (must be < 5%)
-        g5: |f_natural - freq|/freq - 0.25 (must be within 25%)
+        g5: f_resonance_error - 0.20      (f_natural within 20% of f_op;
+                                           free-piston engines run at resonance —
+                                           inverter decouples grid freq, not engine freq)
         g6: 60 - P_electrical             (must be >= 60 W)
+        g7: phase_error_deg - 15          (achievable phase within 15° of target;
+                                           ensures displacer spring k_d is physically
+                                           consistent with the desired phase angle)
     """
 
     def __init__(self):
         super().__init__(
             n_var=N_VAR,
             n_obj=2,
-            n_ieq_constr=7,
+            n_ieq_constr=8,
             xl=LOWER,
             xu=UPPER,
         )
@@ -126,7 +145,8 @@ class StirlingProblem(Problem):
             for j, key in enumerate(PARAM_KEYS):
                 val = X[i, j]
                 # Integer parameters
-                if key in ("cooler_tube_count", "heater_int_fin_count"):
+                if key in ("cooler_tube_count", "heater_int_fin_count",
+                           "coil_turns", "coil_layers"):
                     val = round(val)
                 params[key] = val
 
@@ -143,10 +163,16 @@ class StirlingProblem(Problem):
                 G[i, 2] = r["dT_heater"] - 80
                 G[i, 3] = r["leak_piston_pct"] - 5
                 G[i, 4] = r["leak_displacer_pct"] - 5
-                # Frequency constraint removed — inverter decouples engine from AC grid.
-                # Only require f_natural > 10 Hz (below that, engine is impractically slow)
-                G[i, 5] = 10.0 - r["f_natural"]
+                # Resonance constraint: free-piston engines must operate AT resonance.
+                # The inverter decouples output AC from the grid, but the engine mechanics
+                # still require f_natural ≈ f_op for sustained self-oscillation.
+                # Allow 20% tolerance to accommodate gas spring nonlinearity at amplitude.
+                G[i, 5] = r.get("f_resonance_error", 0.0) - 0.20
                 G[i, 6] = 60 - r["P_electrical"]
+                # Phase error constraint: the spring stiffness k_d must produce a
+                # phase angle within 15° of the requested phase_angle.  This enforces
+                # consistency between the dynamics model and the intended design.
+                G[i, 7] = r.get("phase_error_deg", 0.0) - 15.0
 
             except (ValueError, ZeroDivisionError, OverflowError):
                 # Infeasible design — penalize heavily
@@ -184,7 +210,7 @@ def run_optimization(n_gen=100, pop_size=120, seed=42, verbose=True):
 
     if verbose:
         print(f"Running NSGA-II: {pop_size} population x {n_gen} generations")
-        print(f"  {N_VAR} design variables, 2 objectives, 7 constraints")
+        print(f"  {N_VAR} design variables, 2 objectives, 8 constraints")
         print(f"  Evaluating ~{pop_size * n_gen:,} designs...")
         print()
 
@@ -220,7 +246,8 @@ def extract_designs(result, top_n=10):
         params = {}
         for j, key in enumerate(PARAM_KEYS):
             val = X[idx, j]
-            if key in ("cooler_tube_count", "heater_int_fin_count"):
+            if key in ("cooler_tube_count", "heater_int_fin_count",
+                       "coil_turns", "coil_layers"):
                 val = round(val)
             params[key] = val
 
@@ -315,6 +342,9 @@ def generate_cad_params(design):
         "HOT_SPACE_GAP": ("hot_space_gap", "mm"),
         "BOUNCE_SPACE_LENGTH": ("bounce_length", "mm"),
         "MAG_SPRING_GAP": (None, "mm — must be > displacer_stroke"),
+        "COIL_TURNS": ("coil_turns", "total turns"),
+        "COIL_WIRE_DIA": ("coil_wire_dia", "mm"),
+        "COIL_LAYERS": ("coil_layers", "radial layers"),
     }
 
     for cad_name, (opt_key, unit) in param_map.items():

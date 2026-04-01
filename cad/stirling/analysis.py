@@ -31,6 +31,9 @@ References:
 import math
 
 
+STEFAN_BOLTZMANN = 5.67e-8  # W/(m²·K⁴)
+
+
 # ── Helium gas properties (from kinetic theory, temperature-dependent) ──
 
 HELIUM_CONST = {
@@ -156,6 +159,43 @@ DEFAULTS = {
 
     # Rectifier + power electronics
     "eta_electronics": 0.95,    # rectifier + DC-DC converter efficiency
+
+    # Composite pressure vessel (inner liner for thermal isolation)
+    # The outer structural shell (k_vessel) provides pressure containment.
+    # An inner low-k liner reduces axial conduction loss without sacrificing strength.
+    # Set vessel_liner_frac > 0 to activate; vessel_liner_k defaults to k_vessel (no liner).
+    "vessel_liner_k": None,     # W/mK — None means use k_vessel (no liner effect)
+    "vessel_liner_frac": 0.0,   # fraction of wall thickness that is low-k inner liner (0–0.5)
+
+    # ── Displacer dynamics (Fix 3: coupled piston–displacer model) ──────
+    # The phase angle between piston and displacer is NOT a free choice; it
+    # emerges from the coupled dynamics. The displacer spring stiffness is the
+    # real design variable. At k_d = m_d × ω², phase → 90° (optimal).
+    "displacer_spring_k": None,     # N/m — None = auto-tune for 90° phase at f_op
+    "displacer_damping_ratio": 0.20, # ζ — effective gas thermodynamic damping (0.1–0.3)
+
+    # ── Heater head external resistance (Fix 6) ─────────────────────────
+    # Heat must conduct through the heater head wall from source (sand/focus)
+    # to the inner fin surface. The gas-side dT_heater is already modeled;
+    # this captures the wall and source-side resistances.
+    "k_heater_head": 16.0,       # W/mK — heater head wall material (SS316 at 600°C)
+    "h_source_to_heater": 250.0, # W/m²K — external HTC (sand bed convection: 100–400)
+
+    # ── Regenerator axial conduction (Fix 7) ────────────────────────────
+    "regen_wire_k": 16.0,        # W/mK — wire material conductivity (SS316)
+    "regen_C_geo": 0.05,         # geometric factor for axial conduction (0.03–0.08)
+                                  # Most wires are ⊥ to axis; ~5% effectively axial
+
+    # ── Radiation in hot working space (Fix 8) ──────────────────────────
+    "eps_heater_wall": 0.85,     # emissivity of heater head inner surface (Pyromark)
+
+    # ── SmCo temperature correction (Fix 9) ─────────────────────────────
+    "T_mag_spring": None,        # K — temperature at spring magnets; None = use T_mean
+    "alpha_Br": -3.5e-4,         # /°C — Sm2Co17 Br temperature coefficient
+    "T_max_SmCo": 350 + 273.15,  # K — max rated operating temperature for SmCo
+
+    # ── Alternator flux leakage (Fix 10) ────────────────────────────────
+    "mu_r_magnet": 1.05,         # — recoil permeability of SmCo (affects reluctance)
 }
 
 
@@ -196,6 +236,48 @@ def evaluate(params=None):
                    else MATERIALS.get(p["displacer_material"], MATERIALS["ss316"])["k"])
     k_vessel = (p["k_vessel"] if "k_vessel" in p
                 else MATERIALS.get(p["vessel_material"], MATERIALS["ss316"])["k"])
+
+    # Composite pressure vessel: inner low-k liner + outer structural shell.
+    # Both conduct heat axially in parallel (each layer carries heat along its own area).
+    # Effective conductance = k_liner × A_liner + k_outer × A_outer
+    # Simplified as area-weighted k: k_eff = k_liner × f + k_outer × (1 - f)
+    # The outer shell (k_vessel) must be metal to carry hoop stress at 11 bar.
+    # The inner liner (vessel_liner_k) can be ceramic/alumina to reduce conduction loss.
+    _liner_k = p.get("vessel_liner_k") or k_vessel  # default: no liner (same k throughout)
+    _liner_frac = max(0.0, min(0.5, p.get("vessel_liner_frac", 0.0)))
+    k_vessel_eff = _liner_k * _liner_frac + k_vessel * (1.0 - _liner_frac)
+
+    # ── Displacer dynamics (Fix 3) ─────────────────────────────────────
+    # In a free-piston Stirling the phase angle between piston and displacer
+    # is NOT a free design variable — it emerges from the coupled dynamics.
+    # The displacer spring stiffness k_d is the real design handle.
+    # Phase model: 2nd-order forced response with gas thermodynamic damping.
+    #   φ = atan2(2ζ × (ω/ω_d), 1 − (ω/ω_d)²)
+    # At ω_d = ω (resonance) and any ζ > 0: φ → 90° (optimal).
+    #
+    # Material density estimated from conductivity (linear interpolation across
+    # the ceramic–SS range used by the optimizer).
+    omega_pre = 2 * math.pi * p["freq"]  # rad/s (omega computed again later; consistent)
+    _disp_od_m = (_mm2m(p["vessel_id"]) - 2 * p["displacer_clearance"] * 1e-3)
+    _disp_shell_vol = math.pi * _disp_od_m * (p["displacer_wall"] * 1e-3) * (p["displacer_length"] * 1e-3)
+    _rho_disp = 3950 + (k_displacer - 2) / 14 * (8000 - 3950)  # ceramic→SS interpolation
+    m_displacer_kg = max(_rho_disp * _disp_shell_vol, 1e-6)  # kg
+
+    k_d_spring = p.get("displacer_spring_k")
+    if k_d_spring is None:
+        k_d_spring = m_displacer_kg * omega_pre**2  # tune to 90° phase
+
+    omega_d = math.sqrt(max(k_d_spring, 0.0) / m_displacer_kg)
+    zeta_d = p.get("displacer_damping_ratio", 0.20)
+    r_freq_d = omega_pre / max(omega_d, 1e-6)
+    _num_phase = 2 * zeta_d * r_freq_d
+    _den_phase = 1.0 - r_freq_d**2
+    phase_achievable_deg = math.degrees(math.atan2(_num_phase, _den_phase))
+    # Phase convention: atan2 returns (−180°, 180°].  For r<1 with ζ>0 the
+    # response phase is positive (displacer leads piston) — the desired range
+    # for a Stirling is 60°–120°.  Clamp to the physically meaningful range.
+    phase_achievable_deg = max(0.0, min(180.0, phase_achievable_deg))
+    phase_error_deg = abs(p["phase_angle"] - phase_achievable_deg)
 
     # ── Volumes ───────────────────────────────────────────────────
     bore_area = math.pi / 4 * p["vessel_id"]**2  # mm²
@@ -243,7 +325,10 @@ def evaluate(params=None):
 
     tau = p["T_cold"] / p["T_hot"]
     kappa = V_swept_displacer / V_swept_piston if V_swept_piston > 0 else 1
-    alpha = math.radians(p["phase_angle"])
+    # Use dynamically achievable phase angle (Fix 3).
+    # phase_angle in params is the INTENDED value; phase_achievable_deg is what the
+    # coupled displacer dynamics will actually produce.  Schmidt analysis uses reality.
+    alpha = math.radians(phase_achievable_deg)
 
     X_hot = V_hot_dead / V_swept_piston
     X_regen = V_regen_dead / V_swept_piston
@@ -290,7 +375,17 @@ def evaluate(params=None):
     Nu_hot = 0.75 * max(Re_hot, 1)**0.7
     h_hot_space = Nu_hot * g_hot["k"] / L_hot
 
-    NTU_hot = h_hot_space * A_hot_wall_m2 / (m_hot * g["cp"] * p["freq"]) if m_hot > 0 else 100
+    # Fix 8: Radiation in hot working space
+    # At 600°C, radiation between heater wall and displacer surface is significant.
+    # Linearized radiation coefficient: h_rad ≈ 4 × ε_eff × σ × T_mean³
+    # ε_eff for two gray surfaces: 1 / (1/ε₁ + 1/ε₂ − 1)
+    _eps_wall = p.get("eps_heater_wall", 0.85)
+    _eps_disp = 0.80   # displacer hot-face emissivity (painted/oxidized metal)
+    _eps_rad_eff = 1.0 / (1.0 / _eps_wall + 1.0 / _eps_disp - 1.0)
+    h_rad_hot = 4.0 * _eps_rad_eff * STEFAN_BOLTZMANN * p["T_hot"]**3
+    h_hot_total = h_hot_space + h_rad_hot   # convection + radiation
+
+    NTU_hot = h_hot_total * A_hot_wall_m2 / (m_hot * g["cp"] * p["freq"]) if m_hot > 0 else 100
 
     # Cold space: piston face + cylinder wall + COOLER TUBES
     # The cooler is the primary cold-side heat exchanger. Gas flows through
@@ -489,6 +584,24 @@ def evaluate(params=None):
     dT_heater = (p["Q_input"] / (h_heater * _mm2_m2(A_heater_total))
                  if A_heater_total > 0 else 999)
 
+    # ── Fix 6: Heater head external thermal resistance ────────────────
+    # Heat flows: source (sand/focus) → heater outer wall → heater wall conduction
+    # → inner fin surface (dT_heater) → gas.  The two external resistances set
+    # the required source temperature to maintain T_hot in the working gas.
+    heater_head_od = (p["vessel_id"] - 2 * p["heater_head_wall"] + 2 * p["heater_head_wall"])  # = vessel_id mm
+    A_heater_ext_m2 = math.pi * _mm2m(heater_head_od) * _mm2m(p["heater_int_fin_length"])
+    A_heater_ext_m2 = max(A_heater_ext_m2, 1e-4)
+
+    # Wall conduction: Q = k × A × ΔT / t_wall  (cylindrical approximation)
+    dT_heater_wall = (p["Q_input"] * _mm2m(p["heater_head_wall"]) /
+                      (p.get("k_heater_head", 16.0) * A_heater_ext_m2))
+
+    # External source-to-wall convection/radiation: Q = h × A × ΔT
+    dT_heater_ext = p["Q_input"] / (p.get("h_source_to_heater", 250.0) * A_heater_ext_m2)
+
+    # Total source-to-gas temperature drop
+    dT_heater_total = dT_heater + dT_heater_wall + dT_heater_ext
+
     # ── Clearance seal leakage ────────────────────────────────────
     dP_piston = p["P_mean"] * (p_ratio - 1) / (p_ratio + 1)
     V_dot_swept = _mm3_m3(V_swept_piston) * p["freq"] * 2
@@ -554,7 +667,7 @@ def evaluate(params=None):
     # Approximate as regenerator length + some gaps
     L_conduction = _mm2m(p["regen_length"] + p["cooler_length"] +
                          p["hot_space_gap"] + 10)  # mm → m
-    P_loss_vessel_cond = k_vessel * A_vessel_cross * dT / L_conduction
+    P_loss_vessel_cond = k_vessel_eff * A_vessel_cross * dT / L_conduction
 
     # ── Loss 5: Regenerator enthalpy loss ────────────────────────
     # Heat not recovered by the regenerator must be supplied by the heater.
@@ -614,13 +727,26 @@ def evaluate(params=None):
     # P_leak ≈ ΔP × Q_leak (volumetric flow × pressure difference)
     P_loss_seal = dP_piston * (Q_leak_piston + Q_leak_displacer)
 
+    # ── Loss 8: Regenerator axial conduction (Fix 7) ──────────────
+    # Wire mesh conducts heat along the regenerator axis from hot to cold.
+    # The effective axial conductivity sums gas conduction (full area × ε)
+    # and wire conduction (area × (1-ε), but most wires are ⊥ to axis so
+    # only the axial fraction C_geo ≈ 0.05 of wires carry axial heat).
+    #
+    #   k_eff_axial = k_gas × ε + k_wire × (1-ε) × C_geo
+    #   P_loss = k_eff × A_bore × (T_hot - T_cold) / L_regen
+    k_regen_axial = (g_mean["k"] * p["regen_porosity"] +
+                     p.get("regen_wire_k", 16.0) * (1 - p["regen_porosity"]) *
+                     p.get("regen_C_geo", 0.05))
+    P_loss_regen_cond = k_regen_axial * regen_bore_area * dT / _mm2m(p["regen_length"])
+
     # ══════════════════════════════════════════════════════════════
     # POWER BUDGET (from first principles)
     # ══════════════════════════════════════════════════════════════
 
     # Total thermal losses (heat that bypasses the thermodynamic cycle)
     P_loss_thermal = (P_loss_shuttle + P_loss_disp_cond +
-                      P_loss_vessel_cond + P_loss_regen)
+                      P_loss_vessel_cond + P_loss_regen + P_loss_regen_cond)
 
     # Total mechanical/flow losses (work absorbed by parasitics)
     P_loss_mechanical = P_loss_pumping + P_loss_hysteresis + P_loss_seal
@@ -662,8 +788,25 @@ def evaluate(params=None):
     g_air_gap = max(g_air_gap, 1e-3)  # minimum 1mm
     t_mag_axial = p["magnet_ring_length"] * 1e-3
 
-    # Average flux density in air gap (simple reluctance circuit)
-    B_gap = p["Br_alternator"] * t_mag_axial / (t_mag_axial + g_air_gap)
+    # Fix 9: SmCo temperature correction for alternator magnet
+    # Br decreases linearly with temperature: Br(T) = Br₀ × (1 + α_Br × (T_C − 20))
+    # Alternator magnets on piston are in the cold zone → near T_cold
+    T_alt_mag_C = p["T_cold"] - 273.15  # alternator magnet temperature (°C)
+    Br_alt_corrected = (p["Br_alternator"] *
+                        (1.0 + p.get("alpha_Br", -3.5e-4) * (T_alt_mag_C - 20.0)))
+    Br_alt_corrected = max(Br_alt_corrected, 0.1)  # floor (demagnetised)
+
+    # Fix 10: Corrected reluctance model with recoil permeability and fringe leakage.
+    # Classical magnet-circuit formula (replacing the t/(t+g) approximation):
+    #   B_gap = Br / (1 + μr × g_air / t_mag)
+    # This correctly accounts for SmCo recoil permeability (μr ≈ 1.05).
+    # Additional fringe leakage factor (empirical, from motor design):
+    #   F_fringe = 1 − 0.15 × sqrt(g_air / t_mag)  (validated for g/t < 2)
+    mu_r = p.get("mu_r_magnet", 1.05)
+    _g_over_t = g_air_gap / max(t_mag_axial, 1e-4)
+    B_gap_ideal = Br_alt_corrected / (1.0 + mu_r * _g_over_t)
+    F_fringe = max(1.0 - 0.15 * math.sqrt(_g_over_t), 0.5)
+    B_gap = B_gap_ideal * F_fringe
 
     # Peak EMF: V = N × ω × B × A × (stroke/coil_length) correction
     # The flux linkage change depends on how far the magnet moves relative
@@ -681,15 +824,31 @@ def evaluate(params=None):
     r_wire = p["coil_wire_dia"] * 1e-3 / 2
     A_wire = math.pi * r_wire**2
     rho_cu = 1.72e-8  # Ω·m — copper resistivity at 20°C
-    # Temperature correction: copper resistivity scales as (1 + 0.004×ΔT)
-    T_coil = (p["T_cold"] + 273.15 - 273.15 + 40)  # coil runs ~40°C above cold side
-    rho_cu_hot = rho_cu * (1 + 0.004 * (T_coil - 20))
+    # Temperature correction: copper resistivity ∝ (1 + 0.004 × ΔT_C)
+    # Bug fix: T_cold is in Kelvin; subtract 273.15 to get °C before adding 40°C rise
+    T_coil_C = (p["T_cold"] - 273.15) + 40.0   # °C — cold side + ~40°C coil rise
+    rho_cu_hot = rho_cu * (1.0 + 0.004 * (T_coil_C - 20.0))
 
     # Mean turn length (circumference at mean coil radius)
     R_coil_mean = (p["vessel_id"] / 2 + p["vessel_wall"] +
                    p["coil_layers"] * p["coil_wire_dia"] / 2) * 1e-3
     L_turn = 2 * math.pi * R_coil_mean
-    R_coil = rho_cu_hot * N * L_turn / A_wire  # total coil resistance
+    R_coil = rho_cu_hot * N * L_turn / A_wire  # total coil resistance (Ω)
+
+    # Fix 2: Coil inductance and reactive impedance
+    # Solenoid inductance with Nagaoka coefficient k_N (correction for short coil).
+    # Nagaoka approx: k_N ≈ 1 / (1 + 0.9 × (2r / l)) for l/r < 1.
+    mu_0_alt = 4 * math.pi * 1e-7  # H/m
+    A_coil_cross = math.pi * R_coil_mean**2  # m²
+    l_coil_m = _mm2m(p["coil_length"])
+    k_nagaoka = 1.0 / (1.0 + 0.9 * (2 * R_coil_mean / max(l_coil_m, 1e-4)))
+    L_coil = mu_0_alt * N**2 * A_coil_cross * k_nagaoka / max(l_coil_m, 1e-4)  # Henry
+
+    X_L = omega * L_coil                            # inductive reactance (Ω)
+    Z_coil = math.sqrt(R_coil**2 + X_L**2)          # coil impedance magnitude (Ω)
+    power_factor_coil = R_coil / Z_coil if Z_coil > 0 else 1.0  # cos(φ)
+    # Optimal PFC capacitor cancels X_L: C_pfc = 1 / (ω² × L)
+    C_pfc = 1.0 / (omega**2 * L_coil) if L_coil > 0 else 0.0   # Farads
 
     # Optimal load matching: R_load = R_coil (maximum power transfer)
     # P_elec_max = V_emf_rms² / (4 × R_coil)  — but that's only 50% efficient
@@ -700,22 +859,34 @@ def evaluate(params=None):
     # The actual current is set by the mechanical power available:
     # P_mech = V_emf × I × cos(φ) = I² × (R_load + R_coil)
 
-    # Copper loss at full indicated power extraction
+    # Fix 2: Power extraction with reactive impedance.
+    # Circuit: V_emf (source) in series with R_coil + jX_L feeding resistive load R_load.
+    # Without PFC capacitor the inductive reactance limits extractable real power:
+    #   P_load_max = V_emf² × R_coil / (2R_coil² + X_L²)  (optimised over R_load)
+    # vs purely resistive: P_max = V_emf² / 4R_coil
+    #
+    # With a PFC capacitor (C = 1/(ω²L)) the reactance cancels and full power recovers.
+    # We compute copper loss assuming a power-factor-corrected (PFC) rectifier — the
+    # most realistic case for a modern inverter.  Without PFC, multiply by power_factor_coil².
     if V_emf_rms > 0 and R_coil > 0:
-        # Current needed to extract P_net_indicated:
-        # P_net = V_emf_rms × I - I²×R_coil (simplified, ignoring reactance)
-        # I = (V_emf - sqrt(V_emf² - 4×R_coil×P_net)) / (2×R_coil)
-        discriminant = V_emf_rms**2 - 4 * R_coil * P_net_indicated
+        # With PFC: effective circuit is purely resistive at R_coil.
+        # Current from mechanical power constraint: P_mech = I² × (R_coil + R_load)
+        # For maximum efficiency: R_load >> R_coil → approximate R_load ≈ 3R_coil
+        # Solve: P_net = V_emf × I − I² × R_coil  (quadratic in I)
+        discriminant = V_emf_rms**2 - 4.0 * R_coil * P_net_indicated
         if discriminant > 0:
-            I_rms = (V_emf_rms - math.sqrt(discriminant)) / (2 * R_coil)
+            I_rms = (V_emf_rms - math.sqrt(discriminant)) / (2.0 * R_coil)
             P_copper = I_rms**2 * R_coil
         else:
-            # Coil can't extract this much power (R_coil too high)
-            I_rms = V_emf_rms / (2 * R_coil)  # max power point
+            # Coil impedance too high to extract target power — bound by max power
+            I_rms = V_emf_rms / (2.0 * R_coil)
             P_copper = I_rms**2 * R_coil
+        # Without PFC the apparent current through X_L reduces real power:
+        P_copper_no_pfc = P_copper / (power_factor_coil**2) if power_factor_coil > 0 else P_copper
     else:
-        I_rms = 0
-        P_copper = 0
+        I_rms = 0.0
+        P_copper = 0.0
+        P_copper_no_pfc = 0.0
 
     # Iron losses in stator laminations (hysteresis + eddy current)
     # P_iron = k_iron × (f/f_ref)^1.6 × (B/B_ref)^2 × m_iron
@@ -778,7 +949,17 @@ def evaluate(params=None):
     R_spring_id = p["mag_spring_id"] * 1e-3 / 2  # m
     t_spring = p["mag_spring_thickness"] * 1e-3   # m
     gap_spring = p["mag_spring_gap"] * 1e-3       # m
-    Br = p["Br_magnet"]
+
+    # Fix 9: SmCo temperature correction for spring magnets.
+    # Spring magnets are on the vessel wall, spanning from cooler to hot zone.
+    # Temperature at spring location ≈ T_mean (conservative; use T_mean as default).
+    T_spring_K = p.get("T_mag_spring") or T_mean
+    T_spring_C = T_spring_K - 273.15
+    Br_spring_corrected = (p["Br_magnet"] *
+                           (1.0 + p.get("alpha_Br", -3.5e-4) * (T_spring_C - 20.0)))
+    Br_spring_corrected = max(Br_spring_corrected, 0.1)
+    mag_demagnetization_risk = T_spring_K > p.get("T_max_SmCo", 350 + 273.15)
+    Br = Br_spring_corrected
 
     # Volume and magnetic moment of one ring magnet
     V_spring_magnet = math.pi * (R_spring_od**2 - R_spring_id**2) * t_spring
@@ -811,6 +992,44 @@ def evaluate(params=None):
     f_natural = (1 / (2 * math.pi) * math.sqrt(k_total_spring / m_total)
                  if m_total > 0 else 0)
 
+    # ── Resonance error ───────────────────────────────────────────
+    # Free-piston engines MUST operate at their natural frequency — there is no
+    # crankshaft to enforce phase. The inverter decouples the output AC frequency
+    # from the grid, but cannot change the mechanical resonance of the engine.
+    # If f_natural ≠ f_op, the engine will not self-sustain oscillation.
+    f_resonance_error = abs(f_natural - p["freq"]) / max(p["freq"], 1e-6)
+
+    # ── Magnetic spring linearity check ───────────────────────────
+    # The dipole approximation (F ∝ 1/z⁴) is only accurate when the displacement
+    # amplitude (stroke/2) is small relative to the equilibrium gap.
+    # Rule of thumb: stroke_amplitude / gap < 0.33 for < 10% force error.
+    # Beyond this, the spring is strongly nonlinear and the engine may be unstable.
+    stroke_amplitude = _mm2m(p["piston_stroke"]) / 2
+    mag_spring_stroke_ratio = stroke_amplitude / max(gap_spring, 1e-4)
+
+    # ── Earth cooling loop sizing (Fix 5) ─────────────────────────
+    # A horizontal ground heat exchanger rejects waste heat to the soil.
+    # Line-source steady-state model (Ingersoll & Plass, 1948):
+    #   Q = 2π × k_soil × L_pipe × ΔT / ln(4d / D_pipe)
+    # Solved for L_pipe given required heat rejection Q_cold.
+    #
+    # T_cold is the engine cold side temperature (15°C by default = ground loop setpoint).
+    # The soil far-field temperature sets the driving ΔT for rejection.
+    # Typical UK/Central-EU ground at 1 m depth: ~10-13°C year-round.
+    #
+    # Q_rejected = all input heat not converted to electricity (energy balance).
+    Q_cold_rejected = max(0.0, p["Q_input"] - P_electrical)
+    k_soil = 1.5           # W/(mK) — typical moist sandy loam
+    d_burial = 1.0         # m — pipe burial depth
+    D_pipe = 0.025         # m — 25mm HDPE pipe OD
+    T_soil_far = 12.0      # °C — annual mean ground temperature at 1m
+    T_pipe_inner = p["T_cold"] - 273.15  # °C — fluid at cold-side setpoint
+    dT_ground = max(T_pipe_inner - T_soil_far, 0.5)  # K; 0.5 K floor avoids div/0
+    ln_factor = math.log(4 * d_burial / D_pipe)
+    L_ground_loop_req = (Q_cold_rejected * ln_factor /
+                         (2 * math.pi * k_soil * dT_ground))
+    L_ground_loop_req = max(L_ground_loop_req, 0.0)
+
     # ── Beale number ──────────────────────────────────────────────
     Bn_implied = P_electrical / (p["P_mean"] * p["freq"] * _mm3_m3(V_swept_piston))
 
@@ -824,15 +1043,23 @@ def evaluate(params=None):
          regen_effectiveness > 0.90),
         ("HX dP / Pmean", dp_total_frac, "< 0.05",
          dp_total_frac < 0.05),
-        ("Heater dT (C)", dT_heater, "< 80",
+        ("Heater gas dT (C)", dT_heater, "< 80",
          dT_heater < 80),
+        ("Heater total dT (C)", dT_heater_total, "< 200",
+         dT_heater_total < 200),
         ("Piston leak %", leak_piston_pct, "< 5%",
          leak_piston_pct < 5),
         ("Displacer leak %", leak_displacer_pct, "< 5%",
          leak_displacer_pct < 5),
-        ("Natural freq Hz", f_natural, "> 10",
-         f_natural > 10),
-        ("Electrical W", P_electrical, ">= 75",
+        ("Resonance match %", f_resonance_error * 100, "within 20%",
+         f_resonance_error < 0.20),
+        ("Phase error (deg)", phase_error_deg, "< 15°",
+         phase_error_deg < 15.0),
+        ("Mag spring ratio", mag_spring_stroke_ratio, "< 0.33",
+         mag_spring_stroke_ratio < 0.33),
+        ("SmCo demag risk", 1 if mag_demagnetization_risk else 0, "0 = safe",
+         not mag_demagnetization_risk),
+        ("Electrical W", P_electrical, ">= 60",
          P_electrical >= 60),
     ]
 
@@ -852,6 +1079,7 @@ def evaluate(params=None):
         "P_loss_disp_cond": P_loss_disp_cond,
         "P_loss_vessel_cond": P_loss_vessel_cond,
         "P_loss_regen": P_loss_regen,
+        "P_loss_regen_cond": P_loss_regen_cond,
         "P_loss_hysteresis": P_loss_hysteresis,
         "P_loss_seal": P_loss_seal,
         "P_loss_thermal": P_loss_thermal,
@@ -889,9 +1117,15 @@ def evaluate(params=None):
         "V_emf_rms": V_emf_rms,
         "I_rms": I_rms,
         "R_coil": R_coil,
+        "L_coil": L_coil,
+        "X_L": X_L,
+        "power_factor_coil": power_factor_coil,
+        "C_pfc": C_pfc,
         "P_copper": P_copper,
+        "P_copper_no_pfc": P_copper_no_pfc,
         "P_iron": P_iron,
         "P_alt_loss": P_alt_loss,
+        "Br_alt_corrected": Br_alt_corrected,
 
         # Heat exchangers
         "Re_cooler": Re_cooler,
@@ -906,6 +1140,9 @@ def evaluate(params=None):
 
         # Heater
         "dT_heater": dT_heater,
+        "dT_heater_wall": dT_heater_wall,
+        "dT_heater_ext": dT_heater_ext,
+        "dT_heater_total": dT_heater_total,
         "h_heater": h_heater,
         "Re_heater": Re_heater,
         "A_heater_total_mm2": A_heater_total,
@@ -916,10 +1153,29 @@ def evaluate(params=None):
 
         # Dynamics
         "f_natural": f_natural,
+        "f_resonance_error": f_resonance_error,
+        "mag_spring_stroke_ratio": mag_spring_stroke_ratio,
         "k_gas": k_gas_spring,
         "k_mag": k_mag_spring,
         "k_total": k_total_spring,
         "m_piston_total_g": m_total * 1000,
+
+        # Displacer dynamics
+        "phase_achievable_deg": phase_achievable_deg,
+        "phase_error_deg": phase_error_deg,
+        "m_displacer_kg": m_displacer_kg,
+        "k_d_spring": k_d_spring,
+
+        # Composite vessel
+        "k_vessel_eff": k_vessel_eff,
+
+        # SmCo magnets
+        "Br_spring_corrected": Br_spring_corrected,
+        "mag_demagnetization_risk": mag_demagnetization_risk,
+
+        # Earth cooling loop
+        "Q_cold_rejected": Q_cold_rejected,
+        "L_ground_loop_req": L_ground_loop_req,
 
         # Validation
         "checks": checks,
@@ -959,6 +1215,7 @@ def print_report(params=None):
     print(f"    Displacer cond:     {r['P_loss_disp_cond']:>7.1f} W")
     print(f"    Vessel wall cond:   {r['P_loss_vessel_cond']:>7.1f} W")
     print(f"    Regen imperfection: {r['P_loss_regen']:>7.1f} W")
+    print(f"    Regen axial cond:   {r['P_loss_regen_cond']:>7.1f} W")
     print(f"    ─────────────────────────────")
     print(f"    Total thermal:      {r['P_loss_thermal']:>7.1f} W")
     print(f"  Available for cycle:  {r['Q_available']:.1f} W")
@@ -991,7 +1248,10 @@ def print_report(params=None):
     print(f"  Regen effectiveness:  {r['regen_effectiveness']*100:.1f}%")
     print(f"  Total dP / Pmean:     {r['dp_total_frac']*100:.2f}%")
     print(f"  Heater Re:            {r['Re_heater']:.0f}  h: {r['h_heater']:.0f} W/m²K")
-    print(f"  Heater gas dT:        {r['dT_heater']:.0f} C")
+    print(f"  Heater gas dT:        {r['dT_heater']:.0f} C  (gas-side only)")
+    print(f"  Heater wall dT:       {r['dT_heater_wall']:.0f} C  (conduction through wall)")
+    print(f"  Heater ext dT:        {r['dT_heater_ext']:.0f} C  (source-to-wall convection)")
+    print(f"  Heater total dT:      {r['dT_heater_total']:.0f} C  (source→gas, target < 200)")
 
     print("\n── SEALS ──")
     print(f"  Piston clearance:     {p['piston_clearance']*1000:.0f} um radial")
@@ -1004,7 +1264,33 @@ def print_report(params=None):
     print(f"  Mag spring stiffness: {r['k_mag']/1000:.1f} kN/m")
     print(f"  Total stiffness:      {r['k_total']/1000:.1f} kN/m")
     print(f"  Piston mass:          {r['m_piston_total_g']:.0f} g")
-    print(f"  Natural frequency:    {r['f_natural']:.1f} Hz")
+    print(f"  Natural frequency:    {r['f_natural']:.1f} Hz  "
+          f"(target: {p['freq']:.0f} Hz, error: {r['f_resonance_error']*100:.0f}%)")
+    print(f"  Mag spring ratio:     {r['mag_spring_stroke_ratio']:.3f}  "
+          f"(stroke/2 / gap, target < 0.33)")
+    print(f"  Displacer mass:       {r['m_displacer_kg']*1000:.0f} g")
+    print(f"  Displacer spring k:   {r['k_d_spring']:.0f} N/m")
+    print(f"  Phase achievable:     {r['phase_achievable_deg']:.1f}°  "
+          f"(target: {p['phase_angle']:.0f}°, error: {r['phase_error_deg']:.1f}°)")
+    demag = "WARNING — exceeds T_max_SmCo" if r['mag_demagnetization_risk'] else "OK"
+    print(f"  SmCo Br (spring):     {r['Br_spring_corrected']:.3f} T  ({demag})")
+    print(f"  SmCo Br (alternator): {r['Br_alt_corrected']:.3f} T")
+
+    print("\n── ALTERNATOR (INDUCTANCE) ──")
+    print(f"  Coil R:               {r['R_coil']:.2f} Ω")
+    print(f"  Coil L:               {r['L_coil']*1000:.3f} mH")
+    print(f"  Reactance X_L:        {r['X_L']:.2f} Ω  at {p['freq']:.0f} Hz")
+    print(f"  Power factor:         {r['power_factor_coil']:.3f}  "
+          f"(1.0 = purely resistive)")
+    print(f"  PFC capacitor:        {r['C_pfc']*1e6:.1f} μF  (to cancel X_L)")
+    print(f"  Cu loss (with PFC):   {r['P_copper']:.1f} W")
+    print(f"  Cu loss (no PFC):     {r['P_copper_no_pfc']:.1f} W")
+
+    print("\n── EARTH COOLING LOOP ──")
+    print(f"  Heat to reject:       {r['Q_cold_rejected']:.0f} W  "
+          f"(Q_input − P_electrical)")
+    print(f"  Required pipe length: {r['L_ground_loop_req']:.0f} m  "
+          f"(25mm HDPE, 1m depth, ΔT ≈ 3°C to soil)")
 
     k_d = r.get("k_displacer", p.get("k_displacer",
             MATERIALS.get(p['displacer_material'], MATERIALS['ss316'])["k"]))
@@ -1018,7 +1304,16 @@ def print_report(params=None):
         return f"custom"
     print(f"\n── MATERIALS ──")
     print(f"  Displacer:            {_mat_name(k_d)} (k={k_d:.1f} W/mK)")
-    print(f"  Vessel:               {_mat_name(k_v)} (k={k_v:.1f} W/mK)")
+    k_v_eff = r.get("k_vessel_eff", k_v)
+    liner_frac = p.get("vessel_liner_frac", 0.0)
+    if liner_frac > 0 and p.get("vessel_liner_k"):
+        print(f"  Vessel (outer shell): {_mat_name(k_v)} (k={k_v:.1f} W/mK, "
+              f"{(1-liner_frac)*100:.0f}% of wall)")
+        print(f"  Vessel (inner liner): {_mat_name(p['vessel_liner_k'])} "
+              f"(k={p['vessel_liner_k']:.1f} W/mK, {liner_frac*100:.0f}% of wall)")
+        print(f"  Vessel effective k:   {k_v_eff:.1f} W/mK")
+    else:
+        print(f"  Vessel:               {_mat_name(k_v)} (k={k_v:.1f} W/mK)")
 
     print("\n" + "=" * 70)
     print("VALIDATION CHECKS")
