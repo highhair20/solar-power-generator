@@ -653,12 +653,17 @@ def make_free_piston_stirling() -> cq.Assembly:
 
 if __name__ == "__main__":
     import os
+    import sys
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from check_interference import check_interference
 
     output_dir = os.path.join(os.path.dirname(__file__), "output")
     os.makedirs(output_dir, exist_ok=True)
 
     print("Building free-piston Stirling engine...")
     assembly = make_free_piston_stirling()
+
+    check_interference(assembly)
 
     print("Exporting STEP...")
     assembly.save(os.path.join(output_dir, "free_piston_stirling.step"))

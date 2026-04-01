@@ -12,6 +12,7 @@ A solar thermal power system with heat storage for on-demand electricity generat
 - **No toxic or exotic materials** — all materials must be non-toxic and commonly available
 - **Green to build** — minimal environmental impact in manufacturing
 - **Maximum efficiency** — optimize collection, storage, and conversion
+- **No geometric interference** — no two components may physically occupy the same space; all CAD models and assemblies must be free of solid-body overlaps and intersections
 
 ## System Overview
 
