@@ -59,7 +59,7 @@ def _collect_solids(assembly: cq.Assembly, parent_loc=None):
         else:
             shape = None
 
-        if shape is not None and not shape.IsNull:
+        if shape is not None and not shape.isNull():
             # Apply the cumulative transform to position the shape in root frame
             positioned = shape.located(node_loc)
             yield (assembly.name or "unnamed", positioned)
