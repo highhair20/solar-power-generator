@@ -8,12 +8,20 @@ This is the Leap71-style "computational engineering" loop:
   Parameters → Physics (analysis.py) → Score → Optimize → Better parameters
 
 Design variables (what the optimizer can change):
-  - Piston stroke, displacer stroke
-  - Operating frequency, charge pressure
+  - Vessel bore (vessel_id), vessel wall thickness
+  - Piston stroke, displacer stroke, lengths, wall, clearances
+  - Operating frequency, charge pressure, phase angle
   - Cooler tube count, tube diameter, cooler length
-  - Regenerator length, porosity
+  - Regenerator length, porosity, wire diameter
   - Hot space gap, bounce space length
-  - Phase angle
+  - Heater internal fins (count, height, length)
+  - Displacer thermal conductivity, wall, length
+  - Vessel thermal conductivity, liner conductivity, liner fraction
+  - Heater head wall thickness
+  - Displacer spring stiffness
+  - Magnetic spring pairs, thickness, gap
+  - Alternator magnet ring length
+  - Coil turns, wire diameter, layers, axial length
 
 Objectives (minimize):
   1. -P_electrical  (maximize power)
@@ -22,11 +30,12 @@ Objectives (minimize):
 Constraints (must satisfy):
   - Regenerator effectiveness > 90%
   - Total HX pressure drop < 5% of P_mean
-  - Heater gas temperature drop < 50°C
+  - Heater gas temperature drop < 80°C
   - Piston seal leakage < 5%
   - Displacer seal leakage < 5%
-  - Natural frequency within 25% of operating frequency
+  - Natural frequency within 20% of operating frequency
   - Electrical output >= 60 W
+  - Achievable phase angle within 15° of target
 
 Usage:
   python optimize.py              # run optimization
@@ -58,43 +67,82 @@ from analysis import evaluate, DEFAULTS
 # Each entry: (param_key, lower_bound, upper_bound, description)
 
 DESIGN_VARS = [
+    # ── Engine bore ────────────────────────────────────────────────────────
+    # vessel_id sets the fundamental bore; all piston/displacer diameters
+    # scale from it in analysis.py (piston_dia = vessel_id - 2*piston_wall - piston_cooler_gap).
+    ("vessel_id",            60.0,  130.0,  "Vessel inner diameter / engine bore (mm)"),
+    ("vessel_wall",           3.0,   10.0,  "Vessel wall thickness (mm)"),
+
+    # ── Kinematics ─────────────────────────────────────────────────────────
     ("piston_stroke",         5.0,   20.0,  "Piston stroke (mm)"),
     ("displacer_stroke",      5.0,   20.0,  "Displacer stroke (mm)"),
     ("freq",                 10.0,  100.0,  "Operating frequency (Hz)"),
     ("P_mean",               10e5,   40e5,  "Charge pressure (Pa)"),
     ("phase_angle",          50.0,   90.0,  "Phase angle (deg)"),
+
+    # ── Cold heat exchanger (cooler) ────────────────────────────────────────
     ("cooler_tube_count",    20.0,  100.0,  "Cooler tube count"),
     ("cooler_tube_dia",       1.5,    5.0,  "Cooler tube diameter (mm)"),
     ("cooler_length",        20.0,   60.0,  "Cooler length (mm)"),
+
+    # ── Regenerator ────────────────────────────────────────────────────────
     ("regen_length",         15.0,   80.0,  "Regenerator length (mm)"),
     ("regen_porosity",        0.60,   0.85, "Regenerator porosity"),
+    # Wire diameter sets mesh fineness: 0.06 mm ≈ 200-mesh, 0.25 mm ≈ 40-mesh.
+    # Finer wire → better NTU but higher pressure drop.
+    ("regen_wire_dia",        0.06,   0.25, "Regenerator wire diameter (mm)"),
+
+    # ── Working spaces ──────────────────────────────────────────────────────
     ("hot_space_gap",         5.0,   25.0,  "Hot space gap (mm)"),
     ("bounce_length",        20.0,   80.0,  "Bounce space length (mm)"),
+
+    # ── Piston geometry ─────────────────────────────────────────────────────
     ("piston_length",        15.0,   40.0,  "Piston length (mm)"),
     ("piston_wall",           4.0,   12.0,  "Piston wall thickness (mm)"),
     ("piston_clearance",      0.010,  0.075, "Piston clearance (mm radial)"),
+
+    # ── Displacer geometry ──────────────────────────────────────────────────
     ("displacer_clearance",   0.015,  0.100, "Displacer clearance (mm radial)"),
+    ("displacer_wall",        0.5,    3.0,  "Displacer wall thickness (mm)"),
+    ("displacer_length",     25.0,   80.0,  "Displacer length (mm)"),
+
+    # ── Heater head ─────────────────────────────────────────────────────────
     ("heater_int_fin_count",  8.0,   24.0,  "Heater internal fin count"),
     ("heater_int_fin_height", 10.0,  30.0,  "Heater fin height (mm)"),
     ("heater_int_fin_length", 15.0,  38.0,  "Heater fin length (mm)"),
+    # Wall thickness sets conduction resistance between sand bed and gas.
+    ("heater_head_wall",      2.0,    8.0,  "Heater head wall thickness (mm)"),
+
+    # ── Thermal conductivity / insulation ───────────────────────────────────
     ("k_displacer",           2.0,   16.0,  "Displacer thermal cond (W/mK)"),
     # k_vessel is the OUTER structural shell (must be metal: Ti=7, SS=16).
     # Lower bound = 7 (titanium minimum) — ceramic cannot contain 11 bar pressure.
     ("k_vessel",              7.0,   16.0,  "Vessel outer shell thermal cond (W/mK)"),
     ("vessel_liner_k",        2.0,    7.0,  "Vessel inner liner thermal cond (W/mK)"),
     ("vessel_liner_frac",     0.0,    0.5,  "Vessel liner fraction of wall thickness"),
-    ("displacer_wall",        0.5,    3.0,  "Displacer wall thickness (mm)"),
-    ("displacer_length",     25.0,   80.0,  "Displacer length (mm)"),
 
-    # Displacer spring stiffness (Fix 3: replaces free phase_angle variable).
+    # ── Displacer spring (Fix 3) ────────────────────────────────────────────
     # Phase angle EMERGES from dynamics; k_d is the real design handle.
     # At k_d = m_d × ω², phase → 90° (optimal).
     ("displacer_spring_k",   500.0, 50000.0, "Displacer spring stiffness (N/m)"),
 
-    # Linear alternator coil parameters (previously fixed, now optimized)
+    # ── Magnetic spring ─────────────────────────────────────────────────────
+    # More pairs → stronger spring force but higher mass penalty.
+    ("mag_spring_pairs",      1.0,    4.0,  "Magnetic spring repulsive pairs"),
+    # Thicker magnets → more flux but more mass and shorter stroke.
+    ("mag_spring_thickness",  3.0,   10.0,  "Magnetic spring axial thickness per magnet (mm)"),
+    # Equilibrium gap sets spring stiffness: smaller gap → stiffer, higher force.
+    # Must exceed displacer_stroke to avoid contact.
+    ("mag_spring_gap",       12.0,   40.0,  "Magnetic spring equilibrium gap (mm)"),
+
+    # ── Linear alternator ───────────────────────────────────────────────────
+    # Longer magnet ring → more flux linkage, higher EMF per turn.
+    ("magnet_ring_length",   15.0,   50.0,  "Alternator magnet ring axial length (mm)"),
     ("coil_turns",          100.0,  400.0,  "Coil turns (total)"),
     ("coil_wire_dia",         0.8,    2.5,  "Coil wire diameter (mm)"),
     ("coil_layers",           2.0,    8.0,  "Coil radial layers"),
+    # Longer coil → more turns in flux linkage zone; must fit within magnet stroke.
+    ("coil_length",          15.0,   50.0,  "Coil axial length (mm)"),
 ]
 
 N_VAR = len(DESIGN_VARS)
@@ -137,7 +185,7 @@ class StirlingProblem(Problem):
     def _evaluate(self, X, out, *args, **kwargs):
         n = X.shape[0]
         F = np.zeros((n, 2))
-        G = np.zeros((n, 7))
+        G = np.zeros((n, 8))
 
         for i in range(n):
             # Build parameter dict from design vector
@@ -146,7 +194,7 @@ class StirlingProblem(Problem):
                 val = X[i, j]
                 # Integer parameters
                 if key in ("cooler_tube_count", "heater_int_fin_count",
-                           "coil_turns", "coil_layers"):
+                           "coil_turns", "coil_layers", "mag_spring_pairs"):
                     val = round(val)
                 params[key] = val
 
@@ -247,7 +295,7 @@ def extract_designs(result, top_n=10):
         for j, key in enumerate(PARAM_KEYS):
             val = X[idx, j]
             if key in ("cooler_tube_count", "heater_int_fin_count",
-                       "coil_turns", "coil_layers"):
+                       "coil_turns", "coil_layers", "mag_spring_pairs"):
                 val = round(val)
             params[key] = val
 
@@ -330,6 +378,8 @@ def generate_cad_params(design):
 
     # Map optimizer params back to CAD params
     param_map = {
+        "VESSEL_ID": ("vessel_id", "mm — engine bore"),
+        "VESSEL_WALL": ("vessel_wall", "mm"),
         "PISTON_STROKE": ("piston_stroke", "mm — optimized"),
         "DISPLACER_STROKE": ("displacer_stroke", "mm — optimized"),
         "PISTON_LENGTH": ("piston_length", "mm"),
@@ -341,10 +391,15 @@ def generate_cad_params(design):
         "REGEN_POROSITY": ("regen_porosity", ""),
         "HOT_SPACE_GAP": ("hot_space_gap", "mm"),
         "BOUNCE_SPACE_LENGTH": ("bounce_length", "mm"),
-        "MAG_SPRING_GAP": (None, "mm — must be > displacer_stroke"),
+        "HEATER_HEAD_WALL": ("heater_head_wall", "mm"),
+        "MAG_SPRING_PAIRS": ("mag_spring_pairs", "repulsive pairs"),
+        "MAG_SPRING_THICKNESS": ("mag_spring_thickness", "mm per magnet"),
+        "MAG_SPRING_GAP": ("mag_spring_gap", "mm equilibrium gap"),
+        "MAGNET_RING_LENGTH": ("magnet_ring_length", "mm"),
         "COIL_TURNS": ("coil_turns", "total turns"),
         "COIL_WIRE_DIA": ("coil_wire_dia", "mm"),
         "COIL_LAYERS": ("coil_layers", "radial layers"),
+        "COIL_LENGTH": ("coil_length", "mm"),
     }
 
     for cad_name, (opt_key, unit) in param_map.items():

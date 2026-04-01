@@ -29,6 +29,7 @@ The project is in **research & design** phase:
 - **No toxic or exotic materials** — everything commonly available, unlike PV panels that use lead/cadmium
 - **Green to build** — minimal environmental impact in manufacturing
 - **Maximum efficiency** — target 30% solar-to-electric (up from ~18% baseline), with the Stirling engine being the biggest lever
+- **No geometric interference** — all CAD assemblies are verified free of solid-body overlaps at build time (`cad/check_interference.py`)
 
 A 24" Edmund Optics dish serves as the prototype test platform before scaling to the full 1m dish.
 
@@ -57,19 +58,20 @@ Uses the **Schmidt cycle** (isothermal, sinusoidal motion) as the ideal baseline
 
 Uses **pymoo's NSGA-II** (multi-objective genetic algorithm) with:
 
-**22 design variables** — geometry parameters like piston/displacer stroke, frequency, charge pressure, cooler tube count/diameter, regenerator length/porosity, clearances, phase angle, etc.
+**38 design variables** — the full geometry: engine bore, vessel wall, piston/displacer stroke and length, frequency, charge pressure, phase angle, cooler tube count/diameter/length, regenerator length/porosity/wire diameter, hot space gap, bounce space length, heater fin geometry, heater head wall, displacer spring stiffness, magnetic spring pairs/thickness/gap, alternator magnet ring length, coil turns/wire/layers/length, and thermal conductivity parameters.
 
 **2 objectives** (Pareto front):
 1. Maximize electrical power
 2. Minimize dead volume ratio
 
-**7 constraints** that must all be satisfied:
+**8 constraints** that must all be satisfied:
 - Regenerator effectiveness > 90%
 - Total HX pressure drop < 5% of mean pressure
 - Heater gas temperature drop < 80°C
 - Piston and displacer seal leakage < 5% each
-- Natural frequency > 10 Hz
+- Natural frequency within 20% of operating frequency
 - Electrical output >= 60 W
+- Achievable phase angle within 15° of target
 
 Default run: **120 population × 100 generations** (~12,000 design evaluations). Uses Latin Hypercube Sampling for the initial population, SBX crossover, and polynomial mutation.
 

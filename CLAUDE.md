@@ -53,8 +53,16 @@ A solar thermal power system with heat storage for on-demand electricity generat
 - [`cad/collector/receiver.py`](cad/collector/receiver.py) — Cavity receiver (steel shell, insulation, mounting flange)
 - [`cad/collector/assembly.py`](cad/collector/assembly.py) — Full collector assembly (dish + receiver at focal point)
 - [`cad/collector/export.py`](cad/collector/export.py) — Batch export to STEP/STL/DXF → `cad/collector/output/`
+- [`cad/collector/dish_optics.py`](cad/collector/dish_optics.py) — Analytical optical model: intercept factor, concentration ratio, focal flux distribution (replaces fixed optical efficiency assumption)
+- [`cad/collector/receiver_analysis.py`](cad/collector/receiver_analysis.py) — First-principles receiver thermal loss model: radiation, convection, conduction; selective coating and quartz window options (replaces fixed 83% receiver efficiency)
+- [`cad/collector/faceted_dish.py`](cad/collector/faceted_dish.py) — Faceted hex-mirror dish + frame (~140 facets)
+- [`cad/collector/faceted_dish_octagon.py`](cad/collector/faceted_dish_octagon.py) — Faceted octagon+square dish + frame (100% fill tiling)
 - [`cad/stirling/gamma_stirling.py`](cad/stirling/gamma_stirling.py) — Gamma-type Stirling engine (two cylinders, crankshaft, flywheel)
 - [`cad/stirling/free_piston_stirling.py`](cad/stirling/free_piston_stirling.py) — Free-piston Stirling with linear alternator (sealed pressure vessel)
+- [`cad/stirling/analysis.py`](cad/stirling/analysis.py) — First-principles thermodynamic model: 8 loss mechanisms, Schmidt cycle, alternator electrical model, earth cooling loop sizing
+- [`cad/stirling/optimize.py`](cad/stirling/optimize.py) — NSGA-II multi-objective optimizer: 23 design variables, 2 objectives, 8 constraints
+- [`cad/stirling/cross_section.py`](cad/stirling/cross_section.py) — Cross-section visualization of the free-piston engine
+- [`cad/check_interference.py`](cad/check_interference.py) — Runtime geometric interference checker (OCCT boolean intersection; raises RuntimeError if overlap > 0.1 mm³)
 
 ### Computational
 - [Tools](docs/computational/tools.md) — Software stack (FreeCAD, SolTrace, pymoo, etc.)
