@@ -1,0 +1,36 @@
+# CAD Dependencies
+#
+# CadQuery must be installed via conda — pip installation fails on Python 3.13+
+# due to cadquery-ocp binary dependency conflicts.
+#
+# Install conda or mamba first:
+#   https://docs.conda.io/en/latest/miniconda.html
+#   brew install miniconda        # macOS via Homebrew
+#
+# Then install CadQuery into a conda environment:
+#   conda create -n solar python=3.11
+#   conda activate solar
+#   conda install -c conda-forge cadquery
+#
+# After activating the conda environment, install the remaining pip deps:
+#   pip install -r requirements.txt
+#
+# CadQuery scripts (require conda environment):
+#   cad/collector/dish.py
+#   cad/collector/receiver.py
+#   cad/collector/assembly.py
+#   cad/collector/export.py
+#   cad/collector/faceted_dish.py
+#   cad/collector/faceted_dish_octagon.py
+#   cad/stirling/gamma_stirling.py
+#   cad/stirling/free_piston_stirling.py
+#   cad/stirling/cross_section.py
+#   cad/check_interference.py
+#
+# Analysis and optimization scripts do NOT require CadQuery:
+#   cad/stirling/analysis.py
+#   cad/stirling/optimize.py
+#   cad/collector/dish_optics.py
+#   cad/collector/receiver_analysis.py
+
+cadquery>=2.4.0

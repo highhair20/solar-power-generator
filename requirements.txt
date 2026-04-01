@@ -8,9 +8,6 @@ CoolProp>=6.4.0
 # Multi-objective optimization
 pymoo>=0.6.0
 
-# Parametric CAD
-cadquery>=2.4.0
-
 # Visualization
 matplotlib>=3.7.0
 
@@ -25,3 +22,7 @@ pyyaml>=6.0
 pytest>=7.0.0
 black>=23.0.0
 mypy>=1.0.0
+
+# NOTE: CadQuery (parametric CAD) cannot be installed via pip on Python 3.14+
+# due to cadquery-ocp dependency conflicts. Install via conda instead:
+#   See requirements-cad.txt

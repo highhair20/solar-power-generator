@@ -85,6 +85,34 @@ python optimize.py --report     # detailed report for best design
 python optimize.py --cad        # print CAD parameter update block
 ```
 
+## Installation
+
+### Analysis & Optimization (pip)
+
+```bash
+python3 -m pip install -r requirements.txt
+```
+
+Covers: numpy, scipy, CoolProp, pymoo, matplotlib. Sufficient to run `analysis.py` and `optimize.py`.
+
+### CAD Scripts (conda)
+
+CadQuery cannot be installed via pip on Python 3.13+ due to binary dependency conflicts. Use conda:
+
+```bash
+# Install Miniconda (if not already installed)
+brew install miniconda          # macOS via Homebrew
+# or: https://docs.conda.io/en/latest/miniconda.html
+
+# Create environment and install CadQuery
+conda create -n solar python=3.11
+conda activate solar
+conda install -c conda-forge cadquery
+pip install -r requirements.txt
+```
+
+See `requirements-cad.txt` for the full list of CAD scripts that require this environment.
+
 ## Project Structure
 
 ```
