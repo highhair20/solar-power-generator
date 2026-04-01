@@ -29,13 +29,20 @@ import math
 
 
 SOLAR_DISC_SIGMA = 2.73e-3   # rad — Gaussian sigma of solar disc angular profile
-                              # (half-angle 4.65 mrad → σ = 4.65/√(2 ln 2) ≈ 2.73 mrad)
+                              # Solar disc half-angle at 1 AU:
+                              #   θ_sun = R_sun / d_earth = 6.957e8 / 1.496e11 ≈ 4.65 mrad
+                              # (ASTM E490 / IAU 2015 nominal solar radius)
+                              # Converting half-angle to Gaussian σ for a Gaussian fit:
+                              #   σ = HWHM / √(2 ln 2) → σ = 4.65 / √(2 ln 2) ≈ 2.73 mrad
+                              # (Jeter 1986 uses this Gaussian approximation to the solar limb profile)
 
 
 DEFAULTS = {
     # Dish geometry
     "dish_diameter": 1.0,          # m — aperture diameter
     "rim_angle": 45.0,             # degrees — rim angle (45° → f/D = 0.60)
+                                   # Relationship: f/D = 1 / (4 tan(θ_rim/2))
+                                   # (Duffie & Beckman eq. 7.4.2)
 
     # Reflector
     "reflectance": 0.94,           # solar-weighted reflectance (ReflecTech mirror film)
@@ -199,7 +206,13 @@ def evaluate(params=None):
     # Mean concentration within aperture (= C_geom × η_optical)
     C_mean = C_geom * eta_optical
 
-    # Spot size metrics
+    # Spot size metrics: diameter containing X% of total power for a 2D Gaussian.
+    # For a 2D Gaussian beam, the fraction of power within radius r is:
+    #   F(r) = 1 − exp(−r² / (2σ²))
+    # Inverting: r_X% = σ × √(−2 ln(1 − X/100))
+    #   90%: r = σ × √(2 ln 10)   since −ln(0.1) = ln 10
+    #   95%: r = σ × √(2 ln 20)   since −ln(0.05) = ln 20
+    # d_X% = 2 × r_X%
     d_90pct = 2 * sigma_image * math.sqrt(2 * math.log(10))  # diameter containing 90%
     d_95pct = 2 * sigma_image * math.sqrt(2 * math.log(20))  # diameter containing 95%
 
