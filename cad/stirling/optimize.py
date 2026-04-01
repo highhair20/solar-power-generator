@@ -60,7 +60,24 @@ from pymoo.termination import get_termination
 
 # Import the physics model
 sys.path.insert(0, os.path.dirname(__file__))
-from analysis import evaluate, DEFAULTS
+from analysis import evaluate, DEFAULTS, MATERIALS
+
+
+# ── Material index tables ─────────────────────────────────────────
+# Integer indices map to MATERIALS keys. Per-component subsets enforce
+# physical constraints (e.g. no ceramic in the pressure vessel).
+
+# Displacer: any material — ceramic is excellent for thermal isolation
+DISPLACER_MATERIALS = ["ss316", "ss304", "ti64", "inconel", "ceramic"]
+
+# Vessel: must contain ~11 bar; ceramic cannot. Ti64 is borderline at 600°C
+# but the vessel runs at ambient cold-end temperature so it is acceptable.
+VESSEL_MATERIALS    = ["ss316", "ss304", "ti64", "inconel"]
+
+
+def _material_from_idx(keys, idx):
+    """Snap a continuous optimizer index to a material key string."""
+    return keys[max(0, min(int(round(idx)), len(keys) - 1))]
 
 
 # ── Design variable definitions ───────────────────────────────────
@@ -114,10 +131,21 @@ DESIGN_VARS = [
     ("heater_head_wall",      2.0,    8.0,  "Heater head wall thickness (mm)"),
 
     # ── Thermal conductivity / insulation ───────────────────────────────────
-    ("k_displacer",           2.0,   16.0,  "Displacer thermal cond (W/mK)"),
-    # k_vessel is the OUTER structural shell (must be metal: Ti=7, SS=16).
-    # Lower bound = 7 (titanium minimum) — ceramic cannot contain 11 bar pressure.
-    ("k_vessel",              7.0,   16.0,  "Vessel outer shell thermal cond (W/mK)"),
+    # ── Material selection ──────────────────────────────────────────────────
+    # Integer index → material key (snapped in _evaluate).
+    # Using indices instead of continuous k values ensures k AND ρ are
+    # physically consistent — density drives displacer mass and resonance.
+    #
+    # Displacer (0-4): SS316 | SS304 | Ti-6Al-4V | Inconel 718 | Alumina ceramic
+    #   Ceramic (k=2, ρ=3950) is excellent for thermal isolation; SS316 (k=16, ρ=8000)
+    #   maximises conductance. Ti64 (k=7, ρ=4430) is lightest metal option.
+    ("displacer_material_idx", 0.0,   4.0,  "Displacer material index (0=SS316,1=SS304,2=Ti64,3=Inconel,4=Ceramic)"),
+    # Vessel outer shell (0-3): SS316 | SS304 | Ti-6Al-4V | Inconel 718
+    #   No ceramic — must contain 11 bar hoop stress. Ti64 is acceptable at
+    #   cold-end temperatures (vessel runs near T_cold, not T_hot).
+    ("vessel_material_idx",    0.0,   3.0,  "Vessel material index (0=SS316,1=SS304,2=Ti64,3=Inconel)"),
+    # Vessel inner liner: continuous k (W/mK) — separate insulation layer,
+    # not load-bearing, so ceramic/alumina (k≈2) is valid here.
     ("vessel_liner_k",        2.0,    7.0,  "Vessel inner liner thermal cond (W/mK)"),
     ("vessel_liner_frac",     0.0,    0.5,  "Vessel liner fraction of wall thickness"),
 
@@ -194,11 +222,25 @@ class StirlingProblem(Problem):
                 val = X[i, j]
                 # Integer parameters
                 if key in ("cooler_tube_count", "heater_int_fin_count",
-                           "coil_turns", "coil_layers", "mag_spring_pairs"):
+                           "coil_turns", "coil_layers", "mag_spring_pairs",
+                           "displacer_material_idx", "vessel_material_idx"):
                     val = round(val)
                 params[key] = val
 
             try:
+                # Resolve material indices → string keys so analysis.py uses
+                # both k AND ρ from the same material (k-only overrides removed).
+                if "displacer_material_idx" in params:
+                    params["displacer_material"] = _material_from_idx(
+                        DISPLACER_MATERIALS, params.pop("displacer_material_idx"))
+                if "vessel_material_idx" in params:
+                    params["vessel_material"] = _material_from_idx(
+                        VESSEL_MATERIALS, params.pop("vessel_material_idx"))
+                # Ensure continuous k overrides are absent so analysis.py falls
+                # back to the material lookup (which also sets correct density).
+                params.pop("k_displacer", None)
+                params.pop("k_vessel", None)
+
                 r = evaluate(params)
 
                 # Objectives
@@ -295,9 +337,19 @@ def extract_designs(result, top_n=10):
         for j, key in enumerate(PARAM_KEYS):
             val = X[idx, j]
             if key in ("cooler_tube_count", "heater_int_fin_count",
-                       "coil_turns", "coil_layers", "mag_spring_pairs"):
+                       "coil_turns", "coil_layers", "mag_spring_pairs",
+                       "displacer_material_idx", "vessel_material_idx"):
                 val = round(val)
             params[key] = val
+
+        if "displacer_material_idx" in params:
+            params["displacer_material"] = _material_from_idx(
+                DISPLACER_MATERIALS, params.pop("displacer_material_idx"))
+        if "vessel_material_idx" in params:
+            params["vessel_material"] = _material_from_idx(
+                VESSEL_MATERIALS, params.pop("vessel_material_idx"))
+        params.pop("k_displacer", None)
+        params.pop("k_vessel", None)
 
         metrics = evaluate(params)
         designs.append({
@@ -349,7 +401,23 @@ def print_designs(designs):
 
     print("\n  Design Variables:")
     for j, (key, lo, hi, desc) in enumerate(DESIGN_VARS):
-        val = best["params"][key]
+        # Material indices are resolved to names in extract_designs; look up
+        # the resolved name from params if present, else use raw value.
+        if key == "displacer_material_idx":
+            resolved = best["params"].get("displacer_material", "—")
+            mat = MATERIALS.get(resolved, {})
+            print(f"    {'Displacer material':35s}  {resolved:>10s}  "
+                  f"(k={mat.get('k','?')} W/mK, ρ={mat.get('rho','?')} kg/m³)")
+            continue
+        if key == "vessel_material_idx":
+            resolved = best["params"].get("vessel_material", "—")
+            mat = MATERIALS.get(resolved, {})
+            print(f"    {'Vessel material':35s}  {resolved:>10s}  "
+                  f"(k={mat.get('k','?')} W/mK, ρ={mat.get('rho','?')} kg/m³)")
+            continue
+        val = best["params"].get(key)
+        if val is None:
+            continue
         default = DEFAULTS.get(key, "—")
         if isinstance(default, (int, float)):
             change = f"({default:>10.2f} -> {val:>10.2f})" if abs(val - default) > 0.01 else "(unchanged)"
@@ -380,6 +448,8 @@ def generate_cad_params(design):
     param_map = {
         "VESSEL_ID": ("vessel_id", "mm — engine bore"),
         "VESSEL_WALL": ("vessel_wall", "mm"),
+        "VESSEL_MATERIAL": ("vessel_material", ""),
+        "DISPLACER_MATERIAL": ("displacer_material", ""),
         "PISTON_STROKE": ("piston_stroke", "mm — optimized"),
         "DISPLACER_STROKE": ("displacer_stroke", "mm — optimized"),
         "PISTON_LENGTH": ("piston_length", "mm"),
