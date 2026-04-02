@@ -200,7 +200,7 @@ class StirlingProblem(Problem):
         g7: phase_error_deg - 15          (achievable phase within 15° of target;
                                            ensures displacer spring k_d is physically
                                            consistent with the desired phase angle)
-        g8: mag_spring_ratio - 0.33       (stroke/2 / gap must be < 0.33 to keep
+        g8: mag_spring_stroke_ratio - 0.33 (stroke/2 / gap must be < 0.33 to keep
                                            the magnetic spring in its linear regime;
                                            above 0.33 stiffness varies significantly
                                            across the stroke causing harmonic distortion
@@ -272,7 +272,7 @@ class StirlingProblem(Problem):
                 # Magnetic spring linearity constraint: keep stroke/2 / gap < 0.33
                 # so the spring operates in its near-linear regime. The optimizer
                 # can satisfy this by increasing gap, reducing stroke, or both.
-                G[i, 8] = r.get("mag_spring_ratio", 0.0) - 0.33
+                G[i, 8] = r.get("mag_spring_stroke_ratio", 0.0) - 0.33
 
             except (ValueError, ZeroDivisionError, OverflowError):
                 # Infeasible design — penalize heavily
