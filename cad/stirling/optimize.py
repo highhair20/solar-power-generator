@@ -36,6 +36,7 @@ Constraints (must satisfy):
   - Natural frequency within 20% of operating frequency
   - Electrical output >= 60 W
   - Achievable phase angle within 15° of target
+  - Magnetic spring ratio (stroke/2 / gap) < 0.33 (linear regime)
 
 Usage:
   python optimize.py              # run optimization
@@ -161,7 +162,7 @@ DESIGN_VARS = [
     ("mag_spring_thickness",  3.0,   10.0,  "Magnetic spring axial thickness per magnet (mm)"),
     # Equilibrium gap sets spring stiffness: smaller gap → stiffer, higher force.
     # Must exceed displacer_stroke to avoid contact.
-    ("mag_spring_gap",       12.0,   40.0,  "Magnetic spring equilibrium gap (mm)"),
+    ("mag_spring_gap",       12.0,   60.0,  "Magnetic spring equilibrium gap (mm)"),
 
     # ── Linear alternator ───────────────────────────────────────────────────
     # Longer magnet ring → more flux linkage, higher EMF per turn.
@@ -199,13 +200,18 @@ class StirlingProblem(Problem):
         g7: phase_error_deg - 15          (achievable phase within 15° of target;
                                            ensures displacer spring k_d is physically
                                            consistent with the desired phase angle)
+        g8: mag_spring_ratio - 0.33       (stroke/2 / gap must be < 0.33 to keep
+                                           the magnetic spring in its linear regime;
+                                           above 0.33 stiffness varies significantly
+                                           across the stroke causing harmonic distortion
+                                           and resonance instability)
     """
 
     def __init__(self):
         super().__init__(
             n_var=N_VAR,
             n_obj=2,
-            n_ieq_constr=8,
+            n_ieq_constr=9,
             xl=LOWER,
             xu=UPPER,
         )
@@ -213,7 +219,7 @@ class StirlingProblem(Problem):
     def _evaluate(self, X, out, *args, **kwargs):
         n = X.shape[0]
         F = np.zeros((n, 2))
-        G = np.zeros((n, 8))
+        G = np.zeros((n, 9))
 
         for i in range(n):
             # Build parameter dict from design vector
@@ -263,6 +269,10 @@ class StirlingProblem(Problem):
                 # phase angle within 15° of the requested phase_angle.  This enforces
                 # consistency between the dynamics model and the intended design.
                 G[i, 7] = r.get("phase_error_deg", 0.0) - 15.0
+                # Magnetic spring linearity constraint: keep stroke/2 / gap < 0.33
+                # so the spring operates in its near-linear regime. The optimizer
+                # can satisfy this by increasing gap, reducing stroke, or both.
+                G[i, 8] = r.get("mag_spring_ratio", 0.0) - 0.33
 
             except (ValueError, ZeroDivisionError, OverflowError):
                 # Infeasible design — penalize heavily
@@ -300,7 +310,7 @@ def run_optimization(n_gen=100, pop_size=120, seed=42, verbose=True):
 
     if verbose:
         print(f"Running NSGA-II: {pop_size} population x {n_gen} generations")
-        print(f"  {N_VAR} design variables, 2 objectives, 8 constraints")
+        print(f"  {N_VAR} design variables, 2 objectives, 9 constraints")
         print(f"  Evaluating ~{pop_size * n_gen:,} designs...")
         print()
 
