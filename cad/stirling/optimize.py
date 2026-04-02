@@ -109,6 +109,12 @@ DESIGN_VARS = [
     # Wire diameter sets mesh fineness: 0.06 mm ≈ 200-mesh, 0.25 mm ≈ 40-mesh.
     # Finer wire → better NTU but higher pressure drop.
     ("regen_wire_dia",        0.06,   0.25, "Regenerator wire diameter (mm)"),
+    # External annular regen: if regen_od > vessel_id, an annular shell wraps the
+    # engine body, adding regen cross-section area without proportionally adding
+    # dead volume inside the pressure vessel.  Lower bound = vessel_id minimum (60 mm)
+    # so the optimizer can choose to use it (regen_od > vessel_id) or not.
+    # Upper bound 200 mm → shell up to ~70 mm thick around a 65 mm bore engine.
+    ("regen_od",             60.0,  200.0,  "Regenerator outer diameter / annular shell OD (mm)"),
 
     # ── Working spaces ──────────────────────────────────────────────────────
     ("hot_space_gap",         5.0,   25.0,  "Hot space gap (mm)"),
@@ -197,9 +203,10 @@ class StirlingProblem(Problem):
                                            free-piston engines run at resonance —
                                            inverter decouples grid freq, not engine freq)
         g6: 60 - P_electrical             (must be >= 60 W)
-        g7: phase_error_deg - 15          (achievable phase within 15° of target;
-                                           ensures displacer spring k_d is physically
-                                           consistent with the desired phase angle)
+        g7: phase_error_deg - 25          (achievable phase within 25° of target;
+                                           free-piston phase emerges from dynamics —
+                                           25° reflects real engineering tolerance
+                                           vs. rigid-linkage engines where phase is exact)
         g8: mag_spring_stroke_ratio - 0.33 (stroke/2 / gap must be < 0.33 to keep
                                            the magnetic spring in its linear regime;
                                            above 0.33 stiffness varies significantly
@@ -268,7 +275,7 @@ class StirlingProblem(Problem):
                 # Phase error constraint: the spring stiffness k_d must produce a
                 # phase angle within 15° of the requested phase_angle.  This enforces
                 # consistency between the dynamics model and the intended design.
-                G[i, 7] = r.get("phase_error_deg", 0.0) - 15.0
+                G[i, 7] = r.get("phase_error_deg", 0.0) - 25.0
                 # Magnetic spring linearity constraint: keep stroke/2 / gap < 0.33
                 # so the spring operates in its near-linear regime. The optimizer
                 # can satisfy this by increasing gap, reducing stroke, or both.
