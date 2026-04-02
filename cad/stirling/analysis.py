@@ -225,7 +225,10 @@ DEFAULTS = {
     # to the inner fin surface. The gas-side dT_heater is already modeled;
     # this captures the wall and source-side resistances.
     "k_heater_head": 16.0,       # W/mK — heater head wall material (SS316 at 600°C)
-    "h_source_to_heater": 250.0, # W/m²K — external HTC (sand bed convection: 100–400)
+    "h_source_to_heater": 10000.0, # W/m²K — sodium heat pipe interface (5,000–20,000)
+                                   # Heat pipes use phase-change (latent heat) to transfer
+                                   # heat with near-zero ΔT. Effective k ~10,000–100,000 W/mK.
+                                   # Natural sand convection would be 100–400 W/m²K.
 
     # ── Regenerator axial conduction (Fix 7) ────────────────────────────
     "regen_wire_k": 16.0,        # W/mK — wire material conductivity (SS316)
