@@ -371,10 +371,76 @@ def extract_designs(result, top_n=10):
     return designs
 
 
-def print_designs(designs):
+def print_pareto_chart(result):
+    """Print an ASCII trade-off curve (power vs dead volume ratio) for the full Pareto front."""
+    if result.F is None or len(result.F) == 0:
+        return
+
+    F = result.F  # shape (n_pareto, 2): col0 = -P_elec, col1 = DVR
+    powers = -F[:, 0]
+    dvrs   =  F[:, 1]
+
+    # Sort by power descending for a clean curve
+    order  = np.argsort(powers)[::-1]
+    powers = powers[order]
+    dvrs   = dvrs[order]
+
+    n       = len(powers)
+    width   = 72          # plot columns (x = power)
+    height  = 20          # plot rows    (y = DVR)
+
+    p_min, p_max = powers.min(), powers.max()
+    d_min, d_max = dvrs.min(),   dvrs.max()
+    p_range = max(p_max - p_min, 1.0)
+    d_range = max(d_max - d_min, 0.001)
+
+    # Build a blank grid (rows = DVR axis, cols = power axis)
+    grid = [[" "] * width for _ in range(height)]
+
+    for pw, dv in zip(powers, dvrs):
+        col = int((pw - p_min) / p_range * (width - 1))
+        row = int((dv - d_min) / d_range * (height - 1))
+        row = (height - 1) - row   # flip: low DVR at top
+        col = max(0, min(col, width - 1))
+        row = max(0, min(row, height - 1))
+        grid[row][col] = "●"
+
+    # Print
+    print("\n" + "=" * 90)
+    print("PARETO FRONT — Power vs Dead Volume Ratio trade-off")
+    print(f"  ({n} feasible solutions  |  x-axis: electrical power  |  y-axis: dead volume ratio)")
+    print("=" * 90)
+
+    # Y-axis labels: 5 ticks
+    tick_rows = [0, height // 4, height // 2, 3 * height // 4, height - 1]
+    tick_vals = {r: d_min + (d_max - d_min) * (height - 1 - r) / (height - 1)
+                 for r in tick_rows}
+
+    for row_idx, row in enumerate(grid):
+        label = f"{tick_vals[row_idx]:.2f} │" if row_idx in tick_vals else "     │"
+        print(label + "".join(row))
+
+    # X-axis
+    print("     └" + "─" * width)
+    left_label  = f"{p_min:.0f}W"
+    right_label = f"{p_max:.0f}W"
+    mid_label   = f"{(p_min + p_max) / 2:.0f}W"
+    mid_pos     = width // 2 - len(mid_label) // 2
+    x_row       = left_label.ljust(mid_pos) + mid_label
+    x_row       = x_row.ljust(width - len(right_label)) + right_label
+    print("      " + x_row)
+    print()
+    print(f"  ← lower DVR = less dead volume (better)    higher power = better →")
+    print(f"  Best trade-off: {powers[0]:.1f} W  DVR {dvrs[0]:.2f}")
+
+
+def print_designs(designs, result=None):
     """Print a summary table of optimized designs."""
     if not designs:
         return
+
+    if result is not None:
+        print_pareto_chart(result)
 
     print("\n" + "=" * 90)
     print("OPTIMIZED DESIGNS — Pareto Front (sorted by power)")
@@ -517,7 +583,7 @@ if __name__ == "__main__":
     result = run_optimization(n_gen=args.gens, pop_size=args.pop, seed=args.seed)
 
     designs = extract_designs(result, top_n=args.top)
-    print_designs(designs)
+    print_designs(designs, result=result)
 
     if args.cad and designs:
         generate_cad_params(designs[0])
