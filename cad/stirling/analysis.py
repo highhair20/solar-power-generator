@@ -353,13 +353,25 @@ def evaluate(params=None):
                 p["heater_int_fin_height"] * p["heater_int_fin_length"])  # mm²
     A_heater_total = cup_wall_area + cup_top_area + fin_area  # mm²
 
+    # Regenerator cross-section area (mm²) — computed here so both dead volume
+    # and HX sections use the same value.  When regen_od > vessel_id an external
+    # annular shell adds area; the in-vessel portion remains bore_area.
+    _regen_od_dv = p.get("regen_od", 0.0)
+    if _regen_od_dv > p["vessel_id"]:
+        _annulus_area_mm2 = math.pi / 4 * (_regen_od_dv**2 - p["vessel_id"]**2)
+        regen_cs_area_mm2 = bore_area + _annulus_area_mm2  # mm²
+    else:
+        regen_cs_area_mm2 = bore_area  # mm²
+
     # Dead volumes (mm³)
     V_hot_dead = bore_area * p["hot_space_gap"]
     fin_volume = (p["heater_int_fin_count"] * p["heater_int_fin_height"] *
                   p["heater_int_fin_thickness"] * p["heater_int_fin_length"])
     V_hot_dead = max(0, V_hot_dead - fin_volume)
 
-    V_regen_total = bore_area * p["regen_length"]
+    # Regen dead volume uses the full cross-section (including annular shell).
+    # The external shell volume is real porosity space — gas oscillates through it.
+    V_regen_total = regen_cs_area_mm2 * p["regen_length"]
     V_regen_dead = p["regen_porosity"] * V_regen_total
 
     V_cooler_dead = (p["cooler_tube_count"] * math.pi / 4 *
@@ -557,17 +569,9 @@ def evaluate(params=None):
 
     # ── Regenerator ───────────────────────────────────────────────
     d_wire = _mm2m(p["regen_wire_dia"])
-    # Cross-section: if regen_od > vessel_id, model an external annular regen shell
-    # wrapped around the engine.  The annulus area (regen_od² − vessel_id²) × π/4
-    # is added to the standard bore area, increasing NTU without adding dead length
-    # proportionally (the extra volume is outside the pressure vessel dead space).
-    # regen_od = 0 (default) means standard in-bore regen: area = bore_area.
-    _regen_od = p.get("regen_od", 0.0)
-    if _regen_od > p["vessel_id"]:
-        _annulus_area = math.pi / 4 * (_regen_od**2 - p["vessel_id"]**2)  # mm²
-        regen_bore_area = _mm2_m2(bore_area + _annulus_area)
-    else:
-        regen_bore_area = _mm2_m2(bore_area)
+    # regen_cs_area_mm2 already accounts for any annular shell (computed above
+    # alongside dead volume so both sections stay consistent).
+    regen_bore_area = _mm2_m2(regen_cs_area_mm2)
     regen_flow_area = p["regen_porosity"] * regen_bore_area
     u_regen = V_dot_displacer_peak / regen_flow_area if regen_flow_area > 0 else 1e6
 
