@@ -79,6 +79,16 @@ This document covers research into thermal energy storage methods for the solar 
 
 ---
 
+## Sand Battery Discharge: Heat Pipe Interface
+
+Direct extraction of heat from the sand battery to the Stirling engine heater head is the primary design challenge. Natural convection from loose sand gives only h ≈ 50–250 W/m²K, producing a ~300–390°C temperature drop that dominates the system loss budget.
+
+**Chosen approach: sodium heat pipes** embedded in the sand core with cold ends bonded to the Stirling heater head. Effective thermal conductivity 10,000–100,000 W/mK; reduces sand-to-gas ΔT to ~5–20°C with no moving parts.
+
+See [System Architecture — Sand Battery → Stirling Heat Pipe Interface](../design/system-architecture.md) for full working fluid table, layout diagram, and design rationale.
+
+---
+
 ## Waste Heat Recovery: Water Tank
 
 - Captures low-grade waste heat from engine exhaust
