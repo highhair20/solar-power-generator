@@ -656,9 +656,12 @@ def evaluate(params=None):
     R_mag_i = p["magnet_ring_id"] * 1e-3 / 2
     A_mag = math.pi * (R_mag_o**2 - R_mag_i**2)
 
-    # Magnetic air gap (radial clearance between magnet and coil)
-    # Coil sits on vessel wall, magnet moves inside
-    g_air_gap = (p["vessel_id"] / 2 - p["magnet_ring_od"] / 2) * 1e-3
+    # Effective magnetic air gap = radial clearance (magnet OD → vessel bore) + vessel wall.
+    # SS316 is essentially non-magnetic (µr ≈ 1.02), so the wall acts as additional air gap.
+    # The flux path runs: magnet → gap to bore → vessel wall → stator.
+    g_mag_to_bore = (p["vessel_id"] / 2 - p["magnet_ring_od"] / 2) * 1e-3
+    g_vessel_wall = p["vessel_wall"] * 1e-3
+    g_air_gap = g_mag_to_bore + g_vessel_wall
     g_air_gap = max(g_air_gap, 1e-3)  # minimum 1mm
     t_mag_axial = p["magnet_ring_length"] * 1e-3
 
@@ -682,7 +685,7 @@ def evaluate(params=None):
     A_wire = math.pi * r_wire**2
     rho_cu = 1.72e-8  # Ω·m — copper resistivity at 20°C
     # Temperature correction: copper resistivity scales as (1 + 0.004×ΔT)
-    T_coil = (p["T_cold"] + 273.15 - 273.15 + 40)  # coil runs ~40°C above cold side
+    T_coil = (p["T_cold"] - 273.15) + 40  # °C — T_cold is in K; coil runs ~40°C above cold side
     rho_cu_hot = rho_cu * (1 + 0.004 * (T_coil - 20))
 
     # Mean turn length (circumference at mean coil radius)

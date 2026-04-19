@@ -16,7 +16,7 @@ operation (rated to 300°C, Curie temp ~700°C).
 Includes a half-section cutaway to reveal internal components.
 
 Engineering review fixes applied:
-- Piston OD increased to 89mm (0.5mm radial clearance seal)
+- Piston OD = vessel_id - 50µm diametral (25µm radial clearance seal, matches analysis.py)
 - Full-bore tube bundle cooler (no center bypass)
 - Full-bore packed mesh regenerator, 45mm long
 - Internal heater fins for gas-side heat transfer
@@ -51,7 +51,7 @@ HEATER_INT_FIN_THICKNESS = 1.5  # mm
 HEATER_INT_FIN_LENGTH = 30.0    # mm — axial extent (most of cup depth)
 
 # Displacer
-DISPLACER_OD = VESSEL_ID - 1.5   # mm — 0.75mm radial clearance seal
+DISPLACER_OD = VESSEL_ID - 2 * 0.030  # mm — 30µm radial clearance seal (matches analysis.py)
 DISPLACER_LENGTH = 50.0          # mm
 DISPLACER_WALL = 1.5             # mm — lightweight
 DISPLACER_ROD_DIA = 8.0          # mm
@@ -68,7 +68,7 @@ MAG_SPRING_LENGTH = 8.0           # mm — axial thickness of each magnet ring
 MAG_SPRING_GAP = 20.0             # mm — nominal gap (increased from 10mm for 10-15mm stroke)
 
 # Power piston — 0.5mm radial clearance seal against 90mm bore
-PISTON_OD = 89.0         # mm — was 70mm, now proper clearance seal
+PISTON_OD = VESSEL_ID - 2 * 0.025  # mm — 25µm radial clearance seal (matches analysis.py)
 PISTON_LENGTH = 25.0     # mm
 PISTON_WALL = 8.0        # mm — heavier for inertia
 
@@ -295,7 +295,7 @@ def make_displacer() -> cq.Workplane:
     """Free-floating displacer — lightweight hollow cylinder, no rod.
 
     Oscillates in the hot space driven by pressure differential.
-    Centered by clearance seal to vessel bore (0.75mm radial gap).
+    Centered by clearance seal to vessel bore (30µm radial gap, matches analysis.py).
     Moving SmCo magnetic spring ring bonds directly to the bottom cap.
     """
     outer = cq.Workplane("XY").circle(DISPLACER_OD / 2).extrude(DISPLACER_LENGTH)
@@ -359,7 +359,7 @@ def make_magnetic_spring_moving() -> cq.Workplane:
 def make_power_piston() -> cq.Workplane:
     """Free-floating power piston with magnet ring for linear alternator.
 
-    89mm OD in 90mm bore = 0.5mm radial clearance seal. This is the
+    25µm radial clearance seal against the 90mm bore. This is the
     primary gas seal between working space and bounce space.
 
     Heavier than displacer — provides inertial mass for the oscillating system.
