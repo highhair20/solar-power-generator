@@ -6,7 +6,7 @@ A solar thermal power generator — it converts sunlight to heat, stores it, the
 
 **Collection:** A 1m parabolic dish concentrates sunlight onto a cavity receiver, heating a working fluid to 500-600°C.
 
-**Storage:** The heat goes into a sand battery (inspired by Polar Night Energy), allowing electricity generation even when the sun isn't shining.
+**Storage:** The heat goes into a thermal battery (inspired by Polar Night Energy), allowing electricity generation even when the sun isn't shining.
 
 **Conversion:** A three-stage cascade extracts electricity at different temperature ranges:
 
@@ -28,7 +28,7 @@ The project is in **research & design** phase:
 
 - **No toxic or exotic materials** — everything commonly available, unlike PV panels that use lead/cadmium
 - **Green to build** — minimal environmental impact in manufacturing
-- **Maximum efficiency** — target 30% solar-to-electric (up from ~18% baseline), with the Stirling engine being the biggest lever
+- **Maximum efficiency** — there is no specific target. The goal is to design a system that is more efficient than any PV or other solar collecting technology that currently exists.
 
 A 24" Edmund Optics dish serves as the prototype test platform before scaling to the full 1m dish.
 

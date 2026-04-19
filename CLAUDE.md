@@ -12,6 +12,7 @@ A solar thermal power system with heat storage for on-demand electricity generat
 - **No toxic or exotic materials** — all materials must be non-toxic and commonly available
 - **Green to build** — minimal environmental impact in manufacturing
 - **Maximum efficiency** — optimise collection, storage, and conversion
+- **CAD drawings** - no two components can occupy the same physical space at the same time
 
 ## System Overview
 

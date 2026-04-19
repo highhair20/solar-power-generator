@@ -39,19 +39,19 @@ import argparse
 import math
 import sys
 import os
+from pathlib import Path
 
 import numpy as np
 from pymoo.core.problem import Problem
-from pymoo.algorithms.moo.nsga2 import NSGA2
-from pymoo.operators.crossover.sbx import SBX
-from pymoo.operators.mutation.pm import PM
-from pymoo.operators.sampling.lhs import LHS
-from pymoo.optimize import minimize as pymoo_minimize
-from pymoo.termination import get_termination
 
-# Import the physics model
+# Local physics model (same directory)
 sys.path.insert(0, os.path.dirname(__file__))
 from analysis import evaluate, DEFAULTS
+
+# Shared optimizer infrastructure (project root → src package)
+_project_root = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(_project_root))
+from src.utils.simulation.optimization.base import run_nsga2, decode_design_vector
 
 
 # ── Design variable definitions ───────────────────────────────────
@@ -83,8 +83,9 @@ DESIGN_VARS = [
     ("displacer_length",     25.0,   80.0,  "Displacer length (mm)"),
 ]
 
+INT_KEYS = {"cooler_tube_count", "heater_int_fin_count"}
+
 N_VAR = len(DESIGN_VARS)
-PARAM_KEYS = [v[0] for v in DESIGN_VARS]
 LOWER = np.array([v[1] for v in DESIGN_VARS])
 UPPER = np.array([v[2] for v in DESIGN_VARS])
 
@@ -121,15 +122,7 @@ class StirlingProblem(Problem):
         G = np.zeros((n, 7))
 
         for i in range(n):
-            # Build parameter dict from design vector
-            params = {}
-            for j, key in enumerate(PARAM_KEYS):
-                val = X[i, j]
-                # Integer parameters
-                if key in ("cooler_tube_count", "heater_int_fin_count"):
-                    val = round(val)
-                params[key] = val
-
+            params = decode_design_vector(X[i], DESIGN_VARS, INT_KEYS)
             try:
                 r = evaluate(params)
 
@@ -170,33 +163,8 @@ def run_optimization(n_gen=100, pop_size=120, seed=42, verbose=True):
     Returns:
         pymoo Result object
     """
-    problem = StirlingProblem()
-
-    algorithm = NSGA2(
-        pop_size=pop_size,
-        sampling=LHS(),
-        crossover=SBX(prob=0.9, eta=15),
-        mutation=PM(eta=20),
-        eliminate_duplicates=True,
-    )
-
-    termination = get_termination("n_gen", n_gen)
-
-    if verbose:
-        print(f"Running NSGA-II: {pop_size} population x {n_gen} generations")
-        print(f"  {N_VAR} design variables, 2 objectives, 7 constraints")
-        print(f"  Evaluating ~{pop_size * n_gen:,} designs...")
-        print()
-
-    result = pymoo_minimize(
-        problem,
-        algorithm,
-        termination,
-        seed=seed,
-        verbose=verbose,
-    )
-
-    return result
+    return run_nsga2(StirlingProblem(), pop_size=pop_size, n_gen=n_gen,
+                     seed=seed, verbose=verbose)
 
 
 def extract_designs(result, top_n=10):
@@ -209,21 +177,12 @@ def extract_designs(result, top_n=10):
         print("No feasible solutions found. Try more generations or relaxing constraints.")
         return []
 
-    X = result.X
-    F = result.F
-
     # Sort by power (F[:,0] is -P_electrical, so ascending = highest power first)
-    order = np.argsort(F[:, 0])
+    order = np.argsort(result.F[:, 0])
     designs = []
 
     for rank, idx in enumerate(order[:top_n]):
-        params = {}
-        for j, key in enumerate(PARAM_KEYS):
-            val = X[idx, j]
-            if key in ("cooler_tube_count", "heater_int_fin_count"):
-                val = round(val)
-            params[key] = val
-
+        params = decode_design_vector(result.X[idx], DESIGN_VARS, INT_KEYS)
         metrics = evaluate(params)
         designs.append({
             "rank": rank + 1,

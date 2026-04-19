@@ -11,7 +11,7 @@ generation beyond sunshine hours.
 
 The storage medium is not yet finalised — the primary candidate is sand (granular
 silica), chosen for low cost, high specific heat, non-toxicity, availability, and
-stability at temperatures up to ~1000°C. Other candidates include rock beds and
+stability at temperatures up to ~1000°C. Other candidates include concrete, rock beds and
 phase-change materials (PCM). All models should be parameterised by material
 properties rather than hardcoding sand-specific values.
 
