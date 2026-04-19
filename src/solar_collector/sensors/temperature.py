@@ -7,7 +7,7 @@ Monitors receiver and focal point temperatures.
 from dataclasses import dataclass
 from typing import List, Optional
 
-from ...common.sensors.base import Sensor, SensorReading
+from ...utils.common.sensors.base import Sensor, SensorReading
 
 
 @dataclass

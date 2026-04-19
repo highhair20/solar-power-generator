@@ -11,91 +11,185 @@ A solar thermal power system with heat storage for on-demand electricity generat
 
 - **No toxic or exotic materials** — all materials must be non-toxic and commonly available
 - **Green to build** — minimal environmental impact in manufacturing
-- **Maximum efficiency** — optimize collection, storage, and conversion
+- **Maximum efficiency** — optimise collection, storage, and conversion
 
 ## System Overview
 
 ```
-[Sun] → [Parabolic Dish] → [Sand Battery 500-600°C]
-                                    ↓
-         ┌──────────────────────────┼──────────────────────────┐
-         ↓                          ↓                          ↓
-    [Stirling]                   [ORC]                      [TEG]
-    600→300°C                  300→100°C                  100→40°C
-    15-25% eff                 10-15% eff                 3-5% eff
-         ↓                          ↓                          ↓
-         └──────────────────→ [Electricity] ←──────────────────┘
-                                    ↓
-                          [Hot Water / Heating]
+[Sun] → [Solar Collector] → [Thermal Storage 500-600°C]
+                                       ↓
+         ┌─────────────────────────────┼─────────────────────────────┐
+         ↓                             ↓                             ↓
+    [Stirling]                      [ORC]                         [TEG]
+    600→300°C                     300→100°C                     100→40°C
+    15-25% eff                    10-15% eff                     3-5% eff
+         ↓                             ↓                             ↓
+         └─────────────────→ [Electricity] ←─────────────────────────┘
+                                       ↓
+                             [Hot Water / Heating]
 ```
 
 **Overall solar-to-electric efficiency:** ~18%
-**Total energy utilization (incl. thermal):** 60-80%
+**Total energy utilisation (incl. thermal):** 60-80%
 
-## Documentation
+---
 
-### Research
-- [Solar Collection](docs/research/solar-collection.md) — Parabolic dish, Scheffler, Fresnel hybrid
-- [Thermal Storage](docs/research/thermal-storage.md) — Sand battery, PCM, rock bed
-- [Heat Conversion](docs/research/heat-conversion.md) — Stirling, ORC, Tesla turbine, TEG
-- [Exploratory Concepts](docs/research/exploratory-concepts.md) — Unconventional first-principles ideas
+## Units & Conventions
 
-### Design
-- [System Architecture](docs/design/system-architecture.md) — Heat flow, staging, efficiency
-- [Collector Design](docs/design/collector-design.md) — 1 m parabolic dish sizing and specifications
-- [Materials](docs/design/materials.md) — Approved materials, sourcing
-- [Specifications](docs/design/specifications.md) — Target performance, interfaces
-- [Efficiency Targets](docs/design/efficiency-targets.md) — Path from 18% to 30% efficiency
+| Quantity            | Unit                   | Notes                                          |
+|---------------------|------------------------|------------------------------------------------|
+| Temperature         | °C (calculations in K) | Always convert to Kelvin for thermodynamics    |
+| Energy              | kWh or MJ              | MJ preferred for thermal storage calcs         |
+| Power               | W or kW                | State which in variable names                  |
+| Pressure            | kPa or bar             | Specify in context                             |
+| Mass flow rate      | kg/s                   |                                                |
+| Irradiance (DNI)    | W/m²                   | Direct Normal Irradiance                       |
+| Efficiency          | dimensionless (0–1)    | Never use % in calculations                    |
+| Area                | m²                     |                                                |
+| Time                | s for simulation, h for reporting |                                   |
 
-### CAD
-- [`cad/collector/dish.py`](cad/collector/dish.py) — Parametric parabolic dish (8 petals, backup structure, flat petal pattern)
-- [`cad/collector/receiver.py`](cad/collector/receiver.py) — Cavity receiver (steel shell, insulation, mounting flange)
-- [`cad/collector/assembly.py`](cad/collector/assembly.py) — Full collector assembly (dish + receiver at focal point)
-- [`cad/collector/export.py`](cad/collector/export.py) — Batch export to STEP/STL/DXF → `cad/collector/output/`
-- [`cad/stirling/gamma_stirling.py`](cad/stirling/gamma_stirling.py) — Gamma-type Stirling engine (two cylinders, crankshaft, flywheel)
-- [`cad/stirling/free_piston_stirling.py`](cad/stirling/free_piston_stirling.py) — Free-piston Stirling with linear alternator (sealed pressure vessel)
+**Golden rule:** Include units in all variable names or docstrings. Never pass a bare
+number between subsystems without labelling its unit.
 
-### Computational
-- [Tools](docs/computational/tools.md) — Software stack (FreeCAD, SolTrace, pymoo, etc.)
-- [Workflows](docs/computational/workflows.md) — Optimization pipelines, simulation setup
+---
+
+## Interface Points Between Subsystems
+
+These coupling variables must remain consistent across all three subsystems.
+
+### Solar Collector → Thermal Storage
+- `q_collector_W`: Thermal power delivered to storage [W]
+- `T_focal_K`: Temperature at focal point / collector outlet [K]
+
+### Thermal Storage → Power Conversion
+- `T_storage_hot_K`: Hot-side temperature available to the engine [K]
+- `T_storage_cold_K`: Cold-side temperature returned from engine [K]
+- `q_discharge_W`: Thermal power discharged from storage to engine [W]
+
+### Power Conversion → Grid
+- `P_elec_W`: Electrical power output [W]
+- `eta_engine`: Net heat-to-electricity efficiency (dimensionless)
+- `q_reject_W`: Waste heat rejected to environment [W]
+
+---
+
+## Shared Constants
+
+```python
+SIGMA = 5.6704e-8       # Stefan-Boltzmann constant [W/m²·K⁴]
+G_STC = 1000.0          # Irradiance at standard test conditions [W/m²]
+T_AMB_K = 298.15        # Ambient temperature reference [K] (25°C)
+C_P_AIR = 1005.0        # Specific heat of air [J/kg·K]
+```
+
+---
+
+## Design Targets
+
+| Metric                        | Target          |
+|-------------------------------|-----------------|
+| Peak electrical output        | TBD [kW]        |
+| Daily energy yield            | TBD [kWh/day]   |
+| Storage duration              | TBD [hours]     |
+| System round-trip efficiency  | ~18%            |
+| Design-point DNI              | 850 W/m²        |
+| Ambient design temperature    | 25°C            |
+
+---
 
 ## Directory Structure
 
 ```
 solar-power-generator/
-├── CLAUDE.md              # This file
+├── CLAUDE.md                  ← This file (project-level)
+├── solar-collector/
+│   ├── CLAUDE.md              ← Solar collector subsystem instructions
+│   └── cad/                   ← CadQuery scripts (dish, receiver, assembly)
+├── thermal-storage/
+│   └── CLAUDE.md              ← Thermal storage subsystem instructions
+├── power-conversion/
+│   ├── CLAUDE.md              ← Power conversion subsystem instructions
+│   └── cad/                   ← CadQuery scripts (Stirling engines)
+├── src/                       ← Python source (packages use underscores)
+│   ├── solar_collector/       ← Collector geometry, optics, tracking, sensors
+│   ├── thermal_storage/       ← Storage models, dispatch, insulation
+│   ├── power_conversion/      ← Stirling, ORC, TEG, generator models
+│   └── utils/                 ← Shared code (sensors, simulation, supervisor)
 ├── docs/
-│   ├── research/          # Deep dives on technologies
-│   ├── design/            # Architecture, specs, materials
-│   └── computational/     # Tools and workflows
-├── src/                   # (Future) Simulation code
-├── cad/
-│   ├── collector/         # CadQuery scripts for dish & receiver
-│   │   └── output/        # Generated STEP/STL/DXF (gitignored)
-│   └── stirling/          # CadQuery scripts for Stirling engines
-│       └── output/        # Generated STEP/STL (gitignored)
-├── simulations/           # (Future) CFD/FEA cases
-└── fabrication/           # (Future) Manufacturing outputs
+│   ├── research/              ← Deep dives on technologies
+│   ├── design/                ← Architecture, specs, materials
+│   └── computational/         ← Tools and workflows
+├── data/                      ← (Future) Weather, irradiance, soil properties
+├── results/                   ← (Future) Simulation outputs, plots, reports
+├── config/                    ← System configuration examples
+└── fabrication/               ← (Future) Manufacturing outputs
 ```
 
-## Quick Reference
+**Python import convention:** Top-level component directories use hyphens (readable),
+Python packages inside `src/` use underscores. Run simulations from the project root.
+Import shared utilities via `from src.utils import ...`.
 
-### Key Tools
+---
+
+## Simulation Stack
+
+- **Language:** Python 3.11+
+- **Core libraries:** NumPy, SciPy, Matplotlib, Pandas
+- **Thermodynamics:** CoolProp (fluid properties)
+- **Solar / weather:** pvlib, TMY3 or EPW format
+- **Optimisation:** pymoo (NSGA-II), scipy.optimize
 - **CAD:** FreeCAD, CadQuery, OpenSCAD
 - **Solar ray-tracing:** SolTrace, Tonatiuh, OTSun
 - **Thermal CFD:** OpenFOAM, Elmer FEM
-- **Optimization:** pymoo (NSGA-II), scipy.optimize
-- **Gas properties:** CoolProp
+- **Testing:** pytest
+
+---
+
+## Coding Standards
+
+- All functions must have docstrings with parameter units
+- Use `snake_case` for variables and functions, `UPPER_CASE` for constants
+- Every script must be runnable standalone with `python script.py`
+- Never hardcode file paths — use `pathlib.Path` relative to project root
+- Plots must save to `results/` and use consistent colour scheme:
+  - Solar collector: `#F4A300` (amber)
+  - Thermal storage: `#8B4513` (brown)
+  - Power conversion: `#2E86AB` (blue)
+
+---
+
+## Verification Checklist
+
+Before committing any subsystem change:
+- [ ] Energy balance closes (inputs = outputs + losses) within 1%
+- [ ] Output variables match the interface definitions above (correct units, names)
+- [ ] Unit tests pass: `pytest tests/`
+- [ ] Results are physically reasonable (no negative temperatures, η < 1, etc.)
+- [ ] Any changed interface variable is updated in ALL connected subsystem models
+
+---
+
+## Key Decisions Made
+
+- Cascade conversion (Stirling → ORC → TEG) rather than single engine
+- Sand battery as primary storage candidate (inspired by Polar Night Energy)
+- Parabolic dish as primary collector candidate (highest efficiency and temperature)
+- Tesla turbine as ORC expander alternative (simpler fabrication)
+
+---
+
+## Key References
+
+- Duffie & Beckman, *Solar Engineering of Thermal Processes* (4th ed.)
+- Çengel & Boles, *Thermodynamics: An Engineering Approach*
+- NREL SAM (System Advisor Model) — use for benchmarking simulation results
+- IEA SolarPACES Task documentation for CSP performance standards
+
+---
 
 ## License
 
 This project is dual-licensed:
 
-- **Hardware, CAD, and documentation** (`docs/`, `cad/`, `fabrication/`, `simulations/`) — [CERN-OHL-S-2.0](LICENSE-CERN-OHL-S-2.0.txt)
+- **Hardware, CAD, and documentation** (`docs/`, `solar-collector/cad/`, `power-conversion/cad/`, `fabrication/`) — [CERN-OHL-S-2.0](LICENSE-CERN-OHL-S-2.0.txt)
 - **Software and simulation code** (`src/`) — [GPL-3.0](LICENSE-GPL-3.0.txt)
-
-### Key Decisions Made
-- Cascade conversion (Stirling → ORC → TEG) rather than single engine
-- Sand battery as primary storage (inspired by Polar Night Energy)
-- Parabolic dish as primary collector (highest efficiency and temperature)
-- Tesla turbine as ORC expander alternative (simpler fabrication)
