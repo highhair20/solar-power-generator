@@ -94,7 +94,7 @@ DEFAULTS = {
     "piston_wall": 8.0,         # mm
 
     # Displacer
-    "displacer_clearance": 0.030,  # mm radial gap (30 microns)
+    "displacer_clearance": 0.500,  # mm radial gap — shuttle loss ∝ 1/δ; 30µm gives ~340W loss
     "displacer_length": 50.0,   # mm
     "displacer_wall": 1.5,      # mm
     "displacer_material": "ss316",  # material for thermal conductivity
@@ -516,24 +516,31 @@ def evaluate(params=None):
     # LOSS MECHANISMS (each computed as power loss in Watts)
     # ══════════════════════════════════════════════════════════════
 
-    # ── Loss 1: Pumping (pressure drop × volume flow) ────────────
-    # Cooler uses piston flow, regen uses displacer flow
-    P_loss_pumping = (dp_cooler * V_dot_piston_peak +
-                      dp_regen * V_dot_displacer_peak)
+    # ── Loss 1: Pumping (pressure drop × volume flow, time-averaged) ────────────
+    # Using peak values directly overestimates: for sinusoidal flow the
+    # time-average of dp(t)×V_dot(t) = dp_peak × V_dot_peak × C where:
+    #   C = 1/2      laminar  (dp ∝ u  → <u²> = u_peak²/2)
+    #   C = 4/(3π)   turbulent (dp ∝ u² → <|sin³|> = 4/(3π) ≈ 0.424)
+    osc_avg_cooler = 0.5 if Re_cooler <= 2300 else 4 / (3 * math.pi)
+    osc_avg_regen  = 0.5 if Re_regen  <= 2300 else 4 / (3 * math.pi)
+    P_loss_pumping = (dp_cooler * V_dot_piston_peak * osc_avg_cooler +
+                      dp_regen  * V_dot_displacer_peak * osc_avg_regen)
 
     # ── Loss 2: Shuttle heat loss (displacer thermal shuttling) ──
-    # The displacer oscillates between hot and cold zones, carrying
-    # heat via its wall. Ref: Urieli & Berchowitz eq 7.24
-    # P_shuttle = (π²/8) × k_gas × D × S² × ΔT × f / (L × δ)
-    # But for a solid-wall displacer, wall conduction dominates:
-    # P_shuttle = k_wall × (π × D × t_wall) × S² × ΔT / (2 × L × δ)
-    # where S = stroke amplitude (half peak-to-peak)
+    # Gas in the clearance gap transports heat axially as the displacer oscillates.
+    # Urieli & Berchowitz eq 7.24 (thin annular gap, gas-mediated):
+    #   P_shuttle = (π²/8) × k_gas × D × S² × ΔT / (L × δ)
+    # where S is the stroke amplitude (half peak-to-peak).
+    # Uses k_gas at log-mean temperature — heat is carried by the gap gas,
+    # not the displacer wall. Wall axial conduction is the separate Loss 3.
+    # Note: smaller δ → faster radial equilibration → MORE shuttling (1/δ dependence).
+    # At 30 µm this loss dominates; the optimizer must find a coarser gap.
     S_displacer = _mm2m(p["displacer_stroke"]) / 2  # amplitude
-    t_wall_disp = _mm2m(p["displacer_wall"])
+    t_wall_disp = _mm2m(p["displacer_wall"])         # used by Loss 3
 
-    P_loss_shuttle = (k_displacer * math.pi * D_displacer * t_wall_disp *
+    P_loss_shuttle = (math.pi**2 / 8 * g_mean["k"] * D_displacer *
                       S_displacer**2 * dT /
-                      (2 * L_displacer * max(gap_displacer_m, 1e-6)))
+                      (L_displacer * max(gap_displacer_m, 1e-6)))
 
     # ── Loss 3: Displacer wall conduction (axial) ────────────────
     # Heat conducts along the displacer shell from hot cap to cold end.
@@ -582,7 +589,10 @@ def evaluate(params=None):
     #
     # P_hyst = W_hyst × freq
     V_bounce_m3 = _mm3_m3(bore_area * p["bounce_length"])
-    dV_frac = _mm2m(p["piston_stroke"]) * _mm2_m2(bore_area) / V_bounce_m3
+    # dV_frac = ΔV/V₀ where ΔV is the volume amplitude (half of full stroke).
+    # piston_stroke is full peak-to-peak, same convention as displacer_stroke above.
+    stroke_amplitude_m = _mm2m(p["piston_stroke"]) / 2
+    dV_frac = stroke_amplitude_m * _mm2_m2(bore_area) / V_bounce_m3
 
     # Thermal diffusivity at cold side (bounce space is cold)
     alpha_thermal = g_cold["k"] / (rho_cold * g["cp"])
